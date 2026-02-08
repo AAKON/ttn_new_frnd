@@ -40,21 +40,22 @@ export default function SourcingListingPage() {
     async (pageNum = 1, reset = false) => {
       try {
         setLoading(true);
-        const payload = {
-          keyword: filters.keyword,
-          categoryId: filters.categoryId,
-          locationId: filters.locationId,
-          page: pageNum,
-        };
 
-        const result = await apiRequest("sourcing-proposals/list", {
-          method: "POST",
-          body: payload,
+        // Build query parameters
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", pageNum);
+        if (filters.keyword) queryParams.append("title", filters.keyword);
+        if (filters.categoryId) queryParams.append("product_category_id", filters.categoryId);
+        if (filters.locationId) queryParams.append("location_id", filters.locationId);
+
+        const result = await apiRequest(`sourcing-proposals/list?${queryParams.toString()}`, {
+          method: "GET",
           cache: "no-store",
         });
 
         const newProposals = result?.data?.data || result?.data || [];
-        const lastPage = result?.data?.last_page || 1;
+        const lastPage = result?.data?.last_page || result?.meta?.last_page || 1;
+        const currentPage = result?.data?.current_page || result?.meta?.current_page || pageNum;
 
         if (reset) {
           setProposals(newProposals);
@@ -62,9 +63,10 @@ export default function SourcingListingPage() {
           setProposals((prev) => [...prev, ...newProposals]);
         }
 
-        setHasMore(pageNum < lastPage);
+        setHasMore(currentPage < lastPage);
         setPage(pageNum);
       } catch (error) {
+        console.error("Error fetching proposals:", error);
         setHasMore(false);
       } finally {
         setLoading(false);
