@@ -18,9 +18,16 @@ export async function getHomeDetails() {
     const categoriesData = categoriesRes?.data || {};
     const partnersData = partnersRes?.data || {};
 
+    console.log("Raw API Responses:", {
+      homepage: homepageRes,
+      categories: categoriesRes,
+      partners: partnersRes,
+    });
+
     // Extract locations from categories or use empty array
-    const locations = categoriesData.locations || [];
-    const categories = categoriesData.categories || [];
+    // Handle different possible response structures
+    const locations = categoriesData.locations || categoriesData.data?.locations || [];
+    const categories = categoriesData.categories || categoriesData.data?.categories || categoriesData.data || [];
     const partners = Array.isArray(partnersData) ? partnersData : partnersData.data || [];
 
     // Map API response to homepage component structure
