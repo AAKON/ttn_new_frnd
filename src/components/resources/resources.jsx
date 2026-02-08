@@ -9,7 +9,7 @@ const Resources = async ({ blogsPromise }) => {
     console.error("Error loading blogs:", error);
   }
 
-  if (!blogs || blogs.length === 0) return null;
+  if (!blogs || !Array.isArray(blogs) || blogs.length === 0) return null;
 
   return (
     <Section>
