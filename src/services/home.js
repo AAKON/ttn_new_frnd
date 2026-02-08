@@ -14,9 +14,9 @@ export async function getHomeDetails() {
       apiRequest("partners", { method: "GET", cache: "no-store" }),
     ]);
 
-    const homepageData = homepageRes?.data || {};
-    const categoriesData = categoriesRes?.data || {};
-    const partnersData = partnersRes?.data || {};
+    const homepageData = homepageRes?.data?.data || homepageRes?.data || {};
+    const categoriesResponse = categoriesRes?.data || {};
+    const partnersResponse = partnersRes?.data || {};
 
     console.log("Raw API Responses:", {
       homepage: homepageRes,
@@ -24,11 +24,15 @@ export async function getHomeDetails() {
       partners: partnersRes,
     });
 
-    // Extract locations from categories or use empty array
-    // Handle different possible response structures
-    const locations = categoriesData.locations || categoriesData.data?.locations || [];
-    const categories = categoriesData.categories || categoriesData.data?.categories || categoriesData.data || [];
-    const partners = Array.isArray(partnersData) ? partnersData : partnersData.data || [];
+    // Extract categories - the API returns the array directly in data.data
+    const categories = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : categoriesResponse.data?.categories || [];
+
+    // For now, locations might need to be fetched separately or might be embedded in companies
+    // Extract locations from homepage featured_companies if available
+    const locations = homepageData.featured_companies?.map(company => company.location).filter(Boolean) || [];
+
+    // Extract partners - the API returns the array directly in data.data
+    const partners = Array.isArray(partnersResponse.data) ? partnersResponse.data : partnersResponse.data || [];
 
     // Map API response to homepage component structure
     const mappedData = {
