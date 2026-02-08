@@ -18,11 +18,19 @@ export default async function Home() {
       getHomeDetails(),
     ]);
 
+    console.log("Home page details:", details);
+
     const recentCompanies = details?.companies || [];
     const partners = details?.partners || [];
     const categories = details?.categories || [];
     const locations = details?.locations || [];
     const webAds = details?.webAds || [];
+
+    console.log("Extracted data:", {
+      categoriesCount: categories.length,
+      locationsCount: locations.length,
+      companiesCount: recentCompanies.length,
+    });
     const homeStats = {
       partners: details?.about?.partners || "0",
       countries: details?.about?.countries || "0",
