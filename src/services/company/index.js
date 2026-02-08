@@ -3,11 +3,37 @@ import { getSession } from "next-auth/react";
 import { getSSToken } from "@/utils/getSSToken";
 
 export async function getDataPreBasic() {
-  const token = await getSSToken();
-  const endpoint = `my/company/preparation-data/for-basic`;
-  const options = { method: "GET", cache: "no-store" };
-  const result = await apiRequest(endpoint, options, null, token);
-  return result?.data;
+  try {
+    // Fetch locations and business categories from dedicated public endpoints
+    const [locationsRes, categoriesRes] = await Promise.all([
+      apiRequest("locations", { method: "GET", cache: "no-store" }),
+      apiRequest("business-categories", { method: "GET", cache: "no-store" }),
+    ]);
+
+    // Extract data from responses
+    let locations = locationsRes?.data || [];
+    if (locations && typeof locations === 'object' && !Array.isArray(locations) && locations.data) {
+      locations = locations.data;
+    }
+    locations = Array.isArray(locations) ? locations : [];
+
+    let businessCategories = categoriesRes?.data || [];
+    if (businessCategories && typeof businessCategories === 'object' && !Array.isArray(businessCategories) && businessCategories.data) {
+      businessCategories = businessCategories.data;
+    }
+    businessCategories = Array.isArray(businessCategories) ? businessCategories : [];
+
+    return {
+      locations,
+      businessCategories,
+    };
+  } catch (error) {
+    console.error("Error fetching prep data:", error);
+    return {
+      locations: [],
+      businessCategories: [],
+    };
+  }
 }
 
 export async function getDataPreOverview() {
@@ -34,12 +60,38 @@ export async function getCompanyBasic(slug) {
 }
 
 export async function getMyCompanies() {
-  const session = await getSession();
-  const token = session?.accessToken;
-  const endpoint = `my/company/list`;
-  const options = { method: "GET", next: { revalidate: 60 }, cache: "force-cache" };
-  const result = await apiRequest(endpoint, options, null, token);
-  return result?.data;
+  try {
+    const session = await getSession();
+    const token = session?.accessToken;
+
+    if (!token) {
+      console.warn("No token available for getMyCompanies");
+      return [];
+    }
+
+    const endpoint = `my/company/list`;
+    const options = { method: "GET", cache: "no-store" };
+    const result = await apiRequest(endpoint, options, null, token);
+
+    console.log("getMyCompanies result:", result);
+
+    // Handle different response structures
+    let data = result?.data?.data || result?.data || [];
+
+    // Ensure it's an array
+    if (!Array.isArray(data)) {
+      if (typeof data === 'object' && data !== null) {
+        data = [data];
+      } else {
+        data = [];
+      }
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in getMyCompanies:", error);
+    return [];
+  }
 }
 
 export async function searchMyCompanies(keyword = "") {

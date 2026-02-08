@@ -20,9 +20,41 @@ export async function submitComment(id, comment, toast) {
 }
 
 export async function getSourcingFilterOptions() {
-  const endpoint = `filter-options/sourcing-proposals`;
-  const options = { method: "GET" };
-  return await apiRequest(endpoint, options, null, null);
+  try {
+    // Fetch categories and locations in parallel from dedicated endpoints
+    const [categoriesRes, locationsRes] = await Promise.all([
+      apiRequest(`business-categories`, { method: "GET" }),
+      apiRequest(`locations`, { method: "GET" }),
+    ]);
+
+    // Extract data from responses
+    let categories = categoriesRes?.data || [];
+    if (categories && typeof categories === 'object' && !Array.isArray(categories) && categories.data) {
+      categories = categories.data;
+    }
+    categories = Array.isArray(categories) ? categories : [];
+
+    let locations = locationsRes?.data || [];
+    if (locations && typeof locations === 'object' && !Array.isArray(locations) && locations.data) {
+      locations = locations.data;
+    }
+    locations = Array.isArray(locations) ? locations : [];
+
+    return {
+      data: {
+        categories,
+        locations,
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching filter options:", error);
+    return {
+      data: {
+        categories: [],
+        locations: [],
+      }
+    };
+  }
 }
 
 export async function createSourcingProposal(formData, toast, token) {

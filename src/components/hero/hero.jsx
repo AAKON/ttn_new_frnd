@@ -6,10 +6,13 @@ import { Container } from "@/components/shared";
 const Hero = ({ categories = [], locations = [] }) => {
   console.log("Hero component received:", {
     categoriesCount: categories.length,
+    categoriesSample: categories.slice(0, 3),
     locationsCount: locations.length,
-    categories: categories,
-    locations: locations,
+    locationsSample: locations.slice(0, 3),
   });
+
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeLocations = Array.isArray(locations) ? locations : [];
 
   return (
     <section
@@ -34,14 +37,14 @@ const Hero = ({ categories = [], locations = [] }) => {
               />
               <select className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600">
                 <option>All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                {safeCategories.map((cat) => (
+                  <option key={cat?.id} value={cat?.id}>{cat?.name}</option>
                 ))}
               </select>
               <select className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600">
                 <option>Anywhere</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                {safeLocations.map((loc) => (
+                  <option key={loc?.id} value={loc?.id}>{loc?.name}</option>
                 ))}
               </select>
               <button

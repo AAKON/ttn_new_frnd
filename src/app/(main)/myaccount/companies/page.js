@@ -7,9 +7,20 @@ import { Plus } from "lucide-react";
 export default function MyCompaniesPage() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    getMyCompanies().then((data) => { setCompanies(data || []); setLoading(false); }).catch(() => setLoading(false));
+    getMyCompanies()
+      .then((data) => {
+        console.log("Companies loaded:", data);
+        setCompanies(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading companies:", err);
+        setError(err?.message || "Failed to load companies");
+        setLoading(false);
+      });
   }, []);
 
   return (
@@ -21,7 +32,13 @@ export default function MyCompaniesPage() {
         </Link>
       </div>
       {loading ? (
-        <p>Loading...</p>
+        <p className="text-gray-500">Loading your companies...</p>
+      ) : error ? (
+        <div className="bg-white rounded-lg border border-red-200 p-6 text-center">
+          <p className="text-red-600 font-semibold">Error loading companies</p>
+          <p className="text-sm text-gray-500 mt-2">{error}</p>
+          <button onClick={() => window.location.reload()} className="text-sm text-brand-600 font-semibold mt-4">Retry</button>
+        </div>
       ) : companies.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <p className="text-gray-500">You haven&apos;t added any companies yet.</p>

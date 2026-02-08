@@ -18,7 +18,15 @@ export default async function Home() {
       getHomeDetails(),
     ]);
 
-    console.log("Home page details:", details);
+    console.log("=== Home Page Data Flow ===");
+    console.log("1. Raw details from getHomeDetails:", {
+      hasCategories: !!details?.categories,
+      categoriesLength: details?.categories?.length,
+      categoriesSample: details?.categories?.slice(0, 2),
+      hasLocations: !!details?.locations,
+      locationsLength: details?.locations?.length,
+      locationsSample: details?.locations?.slice(0, 2),
+    });
 
     const recentCompanies = details?.companies || [];
     const partners = details?.partners || [];
@@ -26,9 +34,11 @@ export default async function Home() {
     const locations = details?.locations || [];
     const webAds = details?.webAds || [];
 
-    console.log("Extracted data:", {
+    console.log("2. After destructuring:", {
       categoriesCount: categories.length,
+      categoriesSample: categories.slice(0, 2),
       locationsCount: locations.length,
+      locationsSample: locations.slice(0, 2),
       companiesCount: recentCompanies.length,
     });
     const homeStats = {
@@ -38,6 +48,13 @@ export default async function Home() {
       factory_people: details?.about?.factory_people || "0",
       global_audience: details?.about?.global_audience || "0",
     };
+
+    console.log("3. Passing to Hero component:", {
+      categoriesCount: categories.length,
+      locationsCount: locations.length,
+      categoriesType: typeof categories,
+      isArrayCategories: Array.isArray(categories),
+    });
 
     return (
       <Suspense

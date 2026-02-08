@@ -8,15 +8,35 @@ import { apiRequest } from "@/utils/api";
 export async function getHomeDetails() {
   try {
     // Fetch all required data in parallel
-    const [homepageRes, categoriesRes, partnersRes] = await Promise.all([
+    const [homepageRes, categoriesRes, locationsRes, partnersRes] = await Promise.all([
       apiRequest("homepage", { method: "GET", cache: "no-store" }),
       apiRequest("business-categories", { method: "GET", cache: "no-store" }),
+      apiRequest("locations", { method: "GET", cache: "no-store" }),
       apiRequest("partners", { method: "GET", cache: "no-store" }),
     ]);
 
     const homepageData = homepageRes?.data?.data || homepageRes?.data || {};
-    const categoriesResponse = categoriesRes?.data || {};
-    const partnersResponse = partnersRes?.data || {};
+
+    // Defensive extraction for categories - handle multiple response structures
+    let categoriesData = categoriesRes?.data || [];
+    if (categoriesData && typeof categoriesData === 'object' && !Array.isArray(categoriesData) && categoriesData.data) {
+      categoriesData = categoriesData.data;
+    }
+    const categories = Array.isArray(categoriesData) ? categoriesData : [];
+
+    // Defensive extraction for locations - from dedicated API
+    let locationsData = locationsRes?.data || [];
+    if (locationsData && typeof locationsData === 'object' && !Array.isArray(locationsData) && locationsData.data) {
+      locationsData = locationsData.data;
+    }
+    const locations = Array.isArray(locationsData) ? locationsData : [];
+
+    // Defensive extraction for partners
+    let partnersData = partnersRes?.data || [];
+    if (partnersData && typeof partnersData === 'object' && !Array.isArray(partnersData) && partnersData.data) {
+      partnersData = partnersData.data;
+    }
+    const partners = Array.isArray(partnersData) ? partnersData : [];
 
     console.log("Raw API Responses:", {
       homepage: homepageRes,
@@ -24,15 +44,13 @@ export async function getHomeDetails() {
       partners: partnersRes,
     });
 
-    // Extract categories - the API returns the array directly in data.data
-    const categories = Array.isArray(categoriesResponse.data) ? categoriesResponse.data : categoriesResponse.data?.categories || [];
-
-    // For now, locations might need to be fetched separately or might be embedded in companies
-    // Extract locations from homepage featured_companies if available
-    const locations = homepageData.featured_companies?.map(company => company.location).filter(Boolean) || [];
-
-    // Extract partners - the API returns the array directly in data.data
-    const partners = Array.isArray(partnersResponse.data) ? partnersResponse.data : partnersResponse.data || [];
+    console.log("Extracted data before mapping:", {
+      categoriesCount: categories.length,
+      categoriesSample: categories.slice(0, 3),
+      locationsCount: locations.length,
+      locationsSample: locations.slice(0, 3),
+      partnersCount: partners.length,
+    });
 
     // Map API response to homepage component structure
     const mappedData = {
