@@ -4,6 +4,13 @@ import Link from "next/link";
 import { Container } from "@/components/shared";
 
 const Hero = ({ categories = [], locations = [] }) => {
+  console.log("Hero component received:", {
+    categoriesCount: categories.length,
+    locationsCount: locations.length,
+    categories: categories,
+    locations: locations,
+  });
+
   return (
     <section
       className="relative py-16 md:py-24 bg-cover bg-center bg-no-repeat"
