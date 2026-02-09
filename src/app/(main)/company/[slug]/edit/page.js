@@ -41,6 +41,7 @@ export default function EditCompanyPage() {
   const [productImagePreview, setProductImagePreview] = useState(null);
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [editingProductId, setEditingProductId] = useState(null);
+  const [itemsPerSlide, setItemsPerSlide] = useState(4);
   const [newProduct, setNewProduct] = useState({
     product_category_id: "",
     name: "",
@@ -61,6 +62,25 @@ export default function EditCompanyPage() {
 
   const [marketShare, setMarketShare] = useState([]);
   const [yearlyTurnover, setYearlyTurnover] = useState([]);
+
+  // Handle responsive slider items
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined') {
+        if (window.innerWidth < 640) {
+          setItemsPerSlide(1); // Mobile
+        } else if (window.innerWidth < 1024) {
+          setItemsPerSlide(2); // Tablet
+        } else {
+          setItemsPerSlide(4); // Desktop
+        }
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch company details
   useEffect(() => {
@@ -117,7 +137,38 @@ export default function EditCompanyPage() {
 
           setSelectedCategories(company.business_categories || company.businessCategories || []);
           setSelectedTypes(company.business_types || company.businessTypes || []);
-          setOverview(company.overview || {});
+
+          // Set overview and extract market share and yearly turnover
+          if (company.overview) {
+            setOverview({
+              is_manufacturer: company.overview.is_manufacturer ? "yes" : "no",
+              capacity: company.overview.production_capacity || "",
+              moq: company.overview.moq || "",
+              lead_time: company.overview.lead_time || "",
+              payment_policy: company.overview.payment_policy || "",
+              delivery_terms: company.overview.shipment_term || "",
+            });
+
+            // Populate market share - convert location_id to country
+            if (company.overview.market_share && Array.isArray(company.overview.market_share)) {
+              setMarketShare(
+                company.overview.market_share.map((item) => ({
+                  country: String(item.location_id),
+                  percentage: item.percentage || "",
+                }))
+              );
+            }
+
+            // Populate yearly turnover
+            if (company.overview.yearly_turnover && Array.isArray(company.overview.yearly_turnover)) {
+              setYearlyTurnover(
+                company.overview.yearly_turnover.map((item) => ({
+                  year: item.year || "",
+                  turnover: item.turnover || "",
+                }))
+              );
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to fetch company", error);
@@ -300,6 +351,90 @@ export default function EditCompanyPage() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const addMarketShare = () => {
+    setMarketShare((prev) => [...prev, { country: "", percentage: "" }]);
+  };
+
+  const removeMarketShare = (index) => {
+    setMarketShare((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateMarketShare = (index, field, value) => {
+    setMarketShare((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const addYearlyTurnover = () => {
+    setYearlyTurnover((prev) => [...prev, { year: "", turnover: "" }]);
+  };
+
+  const removeYearlyTurnover = (index) => {
+    setYearlyTurnover((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateYearlyTurnover = (index, field, value) => {
+    setYearlyTurnover((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleSubmitOverview = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      // Market share array
+      const marketShareData = marketShare
+        .filter((item) => item.country && item.percentage)
+        .map((item) => ({
+          location_id: item.country,
+          percentage: parseInt(item.percentage) || 0,
+        }));
+
+      // Yearly turnover array
+      const yearlyTurnoverData = yearlyTurnover
+        .filter((item) => item.year && item.turnover)
+        .map((item) => ({
+          year: item.year,
+          turnover: parseInt(item.turnover) || 0,
+        }));
+
+      const payload = {
+        is_manufacturer: overview.is_manufacturer === "yes" ? true : false,
+        moq: overview.moq || null,
+        lead_time: overview.lead_time || null,
+        lead_time_unit: overview.lead_time ? "days" : null,
+        shipment_term: overview.delivery_terms || null,
+        payment_policy: overview.payment_policy || null,
+        total_units: null,
+        production_capacity: overview.capacity || null,
+        production_capacity_unit: overview.capacity ? "units" : null,
+        market_share: marketShareData.length > 0 ? marketShareData : null,
+        yearly_turnover: yearlyTurnoverData.length > 0 ? yearlyTurnoverData : null,
+      };
+
+      const result = await apiRequest(
+        `my/company/${slug}/overview/store-or-update`,
+        {
+          method: "POST",
+          body: payload,
+        },
+        null,
+        session?.accessToken
+      );
+
+      if (result?.status || result?.data) {
+        alert("Overview updated successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to save overview", error);
+      alert("Failed to save overview: " + (error?.data?.message || error?.message));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmitBasicInfo = async (e) => {
@@ -802,8 +937,8 @@ export default function EditCompanyPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">Available Products</h3>
 
                   <div className="flex items-center justify-between gap-4">
-                    {/* Left Arrow - Only show if more than 4 products */}
-                    {products.length > 4 && (
+                    {/* Left Arrow - Only show if more products than items per slide */}
+                    {products.length > itemsPerSlide && (
                       <button
                         onClick={() => setCurrentProductIndex(Math.max(0, currentProductIndex - 1))}
                         disabled={currentProductIndex === 0}
@@ -812,7 +947,7 @@ export default function EditCompanyPage() {
                         <ChevronLeft size={24} className="text-gray-600" />
                       </button>
                     )}
-                    {products.length <= 4 && <div className="w-12" />}
+                    {products.length <= itemsPerSlide && <div className="w-12" />}
 
                     {/* Products Carousel with smooth transition - 1 card at a time */}
                     <div className="flex-1 overflow-hidden">
@@ -824,8 +959,8 @@ export default function EditCompanyPage() {
                         <div
                           className="flex gap-4 transition-all duration-500 ease-in-out"
                           style={{
-                            width: `${Math.ceil(products.length / 4) * 100}%`,
-                            transform: `translateX(-${currentProductIndex * (25 / Math.ceil(products.length / 4))}%)`,
+                            width: `${Math.ceil(products.length / itemsPerSlide) * 100}%`,
+                            transform: `translateX(-${currentProductIndex * (100 / Math.ceil(products.length / itemsPerSlide))}%)`,
                           }}
                         >
                           {products.map((product) => {
@@ -839,7 +974,7 @@ export default function EditCompanyPage() {
                               <div
                                 key={product.id}
                                 style={{
-                                  flex: `0 0 ${25 / Math.ceil(products.length / 4)}%`
+                                  flex: `0 0 ${100 / Math.ceil(products.length / itemsPerSlide) / itemsPerSlide}%`
                                 }}
                                 className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
                               >
@@ -925,137 +1060,394 @@ export default function EditCompanyPage() {
                       )}
                     </div>
 
-                    {/* Right Arrow - Only show if more than 4 products */}
-                    {products.length > 4 && (
+                    {/* Right Arrow - Only show if more products than items per slide */}
+                    {products.length > itemsPerSlide && (
                       <button
-                        onClick={() => setCurrentProductIndex(Math.min(products.length - 4, currentProductIndex + 1))}
-                        disabled={currentProductIndex >= products.length - 4}
+                        onClick={() => setCurrentProductIndex(Math.min(products.length - itemsPerSlide, currentProductIndex + 1))}
+                        disabled={currentProductIndex >= products.length - itemsPerSlide}
                         className="flex-shrink-0 bg-white border border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed rounded-full p-2 transition-colors"
                       >
                         <ChevronRight size={24} className="text-gray-600" />
                       </button>
                     )}
-                    {products.length <= 4 && <div className="w-12" />}
+                    {products.length <= itemsPerSlide && <div className="w-12" />}
                   </div>
                 </div>
               )}
             </div>
 
             {/* Profile Section with Tabs */}
-            <div className="bg-white rounded-lg p-8">
-              <div className="flex gap-6 border-b mb-6">
-                {["profile", "clients", "certificates", "contacts", "faq"].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 font-semibold ${
-                      activeTab === tab
-                        ? "text-brand-600 border-b-2 border-brand-600"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              {/* Profile Tab Content */}
-              {activeTab === "profile" && (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Are You Manufacturer?
-                    </label>
-                    <select
-                      name="is_manufacturer"
-                      value={overview.is_manufacturer || ""}
-                      onChange={handleOverviewChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+            <div className="bg-white rounded-lg">
+              <div className="border-b border-gray-300 px-8">
+                <div className="flex gap-12">
+                  {["profile", "clients", "certificates", "contacts", "faq"].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`bg-transparent border-none p-0 pb-4 text-base cursor-pointer transition-all relative ${
+                        activeTab === tab
+                          ? "font-bold text-gray-900"
+                          : "font-normal text-gray-600 hover:text-gray-800"
+                      }`}
                     >
-                      <option value="">Select</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Capacity
-                    </label>
-                    <input
-                      type="text"
-                      name="capacity"
-                      value={overview.capacity || ""}
-                      onChange={handleOverviewChange}
-                      placeholder="Enter capacity"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Minimum Order Quantity (MOQ)
-                    </label>
-                    <input
-                      type="text"
-                      name="moq"
-                      value={overview.moq || ""}
-                      onChange={handleOverviewChange}
-                      placeholder="Enter MOQ"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Lead Time
-                    </label>
-                    <input
-                      type="text"
-                      name="lead_time"
-                      value={overview.lead_time || ""}
-                      onChange={handleOverviewChange}
-                      placeholder="Enter lead time"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Policy
-                    </label>
-                    <input
-                      type="text"
-                      name="payment_policy"
-                      value={overview.payment_policy || ""}
-                      onChange={handleOverviewChange}
-                      placeholder="Enter payment policy"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Terms
-                    </label>
-                    <input
-                      type="text"
-                      name="delivery_terms"
-                      value={overview.delivery_terms || ""}
-                      onChange={handleOverviewChange}
-                      placeholder="Enter delivery terms"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
-                    />
-                  </div>
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {activeTab === tab && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand-600"></div>
+                      )}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+              <div className="px-8 py-8">
 
-              {/* Other tabs - placeholder */}
-              {activeTab !== "profile" && (
-                <div className="text-center py-8 text-gray-600">
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
-                </div>
-              )}
+                {/* Profile Tab Content */}
+                {activeTab === "profile" && (
+                  <form onSubmit={handleSubmitOverview} className="space-y-8">
+                  {/* Overview Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-brand-600 mb-6">Overview</h3>
+
+                    {/* Are You Manufacturer? with Yes/No buttons */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-900 mb-3">
+                        Are You Manufacturer?
+                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name="is_manufacturer"
+                            value="yes"
+                            checked={overview.is_manufacturer === "yes"}
+                            onChange={handleOverviewChange}
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Yes</span>
+                        </label>
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name="is_manufacturer"
+                            value="no"
+                            checked={overview.is_manufacturer === "no"}
+                            onChange={handleOverviewChange}
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">No</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Two Column Grid */}
+                    <div className="grid grid-cols-2 gap-8 mb-6">
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">
+                          Capacity
+                        </label>
+                        <input
+                          type="text"
+                          name="capacity"
+                          value={overview.capacity || ""}
+                          onChange={handleOverviewChange}
+                          placeholder="Enter capacity"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">
+                          No of Machines
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter number"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-brand-600 mb-2 uppercase tracking-wide">
+                          Minimum Order Quantity (MOQ)
+                        </label>
+                        <input
+                          type="text"
+                          name="moq"
+                          value={overview.moq || ""}
+                          onChange={handleOverviewChange}
+                          placeholder="500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-brand-600 mb-2 uppercase tracking-wide">
+                          Lead Time
+                        </label>
+                        <input
+                          type="text"
+                          name="lead_time"
+                          value={overview.lead_time || ""}
+                          onChange={handleOverviewChange}
+                          placeholder="45"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">
+                          Payment Policy
+                        </label>
+                        <input
+                          type="text"
+                          name="payment_policy"
+                          value={overview.payment_policy || ""}
+                          onChange={handleOverviewChange}
+                          placeholder="Bank Transfer, T.T"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">
+                          Delivery Terms
+                        </label>
+                        <input
+                          type="text"
+                          name="delivery_terms"
+                          value={overview.delivery_terms || ""}
+                          onChange={handleOverviewChange}
+                          placeholder="FOB"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Business Insight Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-brand-600 mb-6">Business Insight</h3>
+
+                    {/* Market Share */}
+                    <div className="mb-8">
+                      <h4 className="text-sm font-medium text-gray-900 mb-4">Market Share</h4>
+                      {marketShare.map((item, index) => (
+                        <div key={index} className="grid grid-cols-2 gap-4 mb-4">
+                          <select
+                            value={item.country}
+                            onChange={(e) => updateMarketShare(index, "country", e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                          >
+                            <option value="">Select Country *</option>
+                            {filterOptions.locations.map((location) => (
+                              <option key={location.id} value={location.id}>
+                                {location.name}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={item.percentage}
+                              onChange={(e) => updateMarketShare(index, "percentage", e.target.value)}
+                              placeholder="Enter market share"
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeMarketShare(index)}
+                              className="bg-brand-600 hover:bg-brand-700 text-white p-2 rounded-lg transition-colors flex items-center justify-center"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addMarketShare}
+                        className="w-full border border-gray-300 rounded-lg py-3 px-4 text-gray-700 font-medium text-sm bg-transparent hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 mb-6"
+                      >
+                        <Plus size={20} />
+                        Add new Country
+                      </button>
+                      <div className="h-64 bg-gray-100 rounded-lg p-6 flex flex-col">
+                        {marketShare.filter((item) => item.country && item.percentage).length > 0 ? (
+                          <div className="w-full h-full flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="text-sm font-medium text-gray-700">Market Share</div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-brand-600 rounded-sm"></div>
+                                <span className="text-xs text-gray-600">Market Share</span>
+                              </div>
+                            </div>
+                            {(() => {
+                              const validItems = marketShare.filter((item) => item.country && item.percentage);
+                              const maxValue = Math.max(...validItems.map((item) => parseInt(item.percentage) || 0), 60);
+                              const scale = 200 / maxValue;
+                              const step = Math.ceil(maxValue / 4);
+                              const ySteps = Array.from({ length: 5 }, (_, i) => i * step);
+
+                              return (
+                                <div className="flex-1 flex gap-4">
+                                  {/* Y-Axis */}
+                                  <div className="flex flex-col-reverse justify-between text-xs text-gray-600 pr-2 min-w-fit">
+                                    {ySteps.map((val) => (
+                                      <div key={val}>{val}</div>
+                                    ))}
+                                  </div>
+                                  {/* Chart Area */}
+                                  <div className="flex-1 flex items-end justify-between gap-3 border-l border-b border-gray-400">
+                                    {validItems.map((item, idx) => {
+                                      const locationName = filterOptions.locations.find(
+                                        (loc) => loc.id == item.country
+                                      )?.name || "Unknown";
+                                      const percentage = parseInt(item.percentage) || 0;
+                                      const barHeight = percentage * scale;
+
+                                      return (
+                                        <div key={idx} className="flex flex-col items-center gap-2 flex-1 h-full">
+                                          <div className="w-full h-full flex items-end justify-center">
+                                            <div
+                                              className="w-3/4 bg-brand-600"
+                                              style={{ height: `${barHeight}px`, minHeight: '2px' }}
+                                            ></div>
+                                          </div>
+                                          <div className="text-xs text-gray-700 font-medium text-center whitespace-nowrap">{locationName}</div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 flex items-center justify-center h-full">Add market share data to see chart</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Yearly Turnover */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-4">Yearly Turnover</h4>
+                      {yearlyTurnover.map((item, index) => {
+                        const currentYear = new Date().getFullYear();
+                        const years = Array.from({ length: currentYear - 1900 + 1 }, (_, i) => currentYear - i);
+                        return (
+                          <div key={index} className="grid grid-cols-2 gap-4 mb-4">
+                            <select
+                              value={item.year}
+                              onChange={(e) => updateYearlyTurnover(index, "year", e.target.value)}
+                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                            >
+                              <option value="">Select Year *</option>
+                              {years.map((year) => (
+                                <option key={year} value={year}>
+                                  {year}
+                                </option>
+                              ))}
+                            </select>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={item.turnover}
+                              onChange={(e) => updateYearlyTurnover(index, "turnover", e.target.value)}
+                              placeholder="Enter turnover"
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeYearlyTurnover(index)}
+                              className="bg-brand-600 hover:bg-brand-700 text-white p-2 rounded-lg transition-colors flex items-center justify-center"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={addYearlyTurnover}
+                        className="w-full border border-gray-300 rounded-lg py-3 px-4 text-gray-700 font-medium text-sm bg-transparent hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 mb-6"
+                      >
+                        <Plus size={20} />
+                        Add new Turnover
+                      </button>
+                      <div className="h-64 bg-gray-100 rounded-lg p-6 flex flex-col">
+                        {yearlyTurnover.filter((item) => item.year && item.turnover).length > 0 ? (
+                          <div className="w-full h-full flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="text-sm font-medium text-gray-700">Yearly Turnover (Million USD)</div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-brand-600 rounded-sm"></div>
+                                <span className="text-xs text-gray-600">Turnover</span>
+                              </div>
+                            </div>
+                            {(() => {
+                              const validItems = yearlyTurnover.filter((item) => item.year && item.turnover);
+                              const maxValue = Math.max(...validItems.map((item) => parseInt(item.turnover) || 0), 60);
+                              const scale = 200 / maxValue;
+                              const step = Math.ceil(maxValue / 4);
+                              const ySteps = Array.from({ length: 5 }, (_, i) => i * step);
+
+                              return (
+                                <div className="flex-1 flex gap-4">
+                                  {/* Y-Axis */}
+                                  <div className="flex flex-col-reverse justify-between text-xs text-gray-600 pr-2 min-w-fit">
+                                    {ySteps.map((val) => (
+                                      <div key={val}>{val}</div>
+                                    ))}
+                                  </div>
+                                  {/* Chart Area */}
+                                  <div className="flex-1 flex items-end justify-between gap-3 border-l border-b border-gray-400">
+                                    {validItems.map((item, idx) => {
+                                      const turnover = parseInt(item.turnover) || 0;
+                                      const barHeight = turnover * scale;
+
+                                      return (
+                                        <div key={idx} className="flex flex-col items-center gap-2 flex-1 h-full">
+                                          <div className="w-full h-full flex items-end justify-center">
+                                            <div
+                                              className="w-3/4 bg-brand-600"
+                                              style={{ height: `${barHeight}px`, minHeight: '2px' }}
+                                            ></div>
+                                          </div>
+                                          <div className="text-xs text-gray-700 font-medium text-center">{item.year}</div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 flex items-center justify-center h-full">Add yearly turnover data to see chart</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {submitting ? "Submitting..." : "Submit"}
+                    </button>
+                  </form>
+                )}
+
+                {/* Other tabs - placeholder */}
+                {activeTab !== "profile" && (
+                  <div className="text-center py-8 text-gray-600">
+                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

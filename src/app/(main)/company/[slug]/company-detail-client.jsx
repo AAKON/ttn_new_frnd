@@ -13,9 +13,30 @@ export default function CompanyDetailClient({ company }) {
   const [activeProductTab, setActiveProductTab] = useState(0);
   const [expandedAbout, setExpandedAbout] = useState(false);
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
+  const [itemsPerSlide, setItemsPerSlide] = useState(4);
+  const [activeTab, setActiveTab] = useState("profile");
 
   useEffect(() => {
     setIsHydrated(true);
+  }, []);
+
+  // Handle responsive slider items
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined') {
+        if (window.innerWidth < 640) {
+          setItemsPerSlide(1); // Mobile
+        } else if (window.innerWidth < 1024) {
+          setItemsPerSlide(2); // Tablet
+        } else {
+          setItemsPerSlide(4); // Desktop
+        }
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Reset carousel index when active tab changes
@@ -231,13 +252,13 @@ export default function CompanyDetailClient({ company }) {
                         <ChevronLeft size={20} className="text-gray-600" />
                       </button>
 
-                      {/* Products Carousel - 1 card at a time */}
+                      {/* Products Carousel - 1 card at a time, responsive */}
                       <div className="flex-1 overflow-hidden">
                         <div
                           className="flex gap-4 transition-all duration-500 ease-in-out"
                           style={{
-                            width: `${Math.ceil(currentProducts.length / 4) * 100}%`,
-                            transform: `translateX(-${productCarouselIndex * (25 / Math.ceil(currentProducts.length / 4))}%)`,
+                            width: `${Math.ceil(currentProducts.length / itemsPerSlide) * 100}%`,
+                            transform: `translateX(-${productCarouselIndex * (100 / Math.ceil(currentProducts.length / itemsPerSlide))}%)`,
                           }}
                         >
                           {currentProducts.map((product) => {
@@ -250,7 +271,7 @@ export default function CompanyDetailClient({ company }) {
                               <div
                                 key={product.id}
                                 style={{
-                                  flex: `0 0 ${25 / Math.ceil(currentProducts.length / 4)}%`
+                                  flex: `0 0 ${100 / Math.ceil(currentProducts.length / itemsPerSlide) / itemsPerSlide}%`
                                 }}
                                 className="text-center"
                               >
@@ -290,8 +311,8 @@ export default function CompanyDetailClient({ company }) {
 
                       {/* Right Arrow */}
                       <button
-                        onClick={() => setProductCarouselIndex(Math.min(currentProducts.length - 4, productCarouselIndex + 1))}
-                        disabled={productCarouselIndex >= currentProducts.length - 4}
+                        onClick={() => setProductCarouselIndex(Math.min(currentProducts.length - itemsPerSlide, productCarouselIndex + 1))}
+                        disabled={productCarouselIndex >= currentProducts.length - itemsPerSlide}
                         className="flex-shrink-0 bg-white border border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed rounded-full p-2 transition-colors"
                       >
                         <ChevronRight size={20} className="text-gray-600" />
@@ -303,6 +324,189 @@ export default function CompanyDetailClient({ company }) {
                 )}
               </div>
             )}
+
+            {/* Tabs Section */}
+            <div className="bg-white rounded-lg p-4 sm:p-8">
+              <div className="mb-6">
+                <div className="flex gap-8 border-b border-gray-200">
+                  {["profile", "clients", "contacts", "faq"].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`bg-transparent border-none p-0 pb-4 text-base cursor-pointer transition-all relative ${
+                        activeTab === tab
+                          ? "font-bold text-gray-900"
+                          : "font-normal text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {activeTab === tab && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand-600"></div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Profile Tab - Overview */}
+              {activeTab === "profile" && (
+                <div className="space-y-8">
+                  {/* Overview Section */}
+                  <div className="flex flex-col lg:flex-row gap-6 lg:gap-12">
+                    {/* Left Side - Section Name */}
+                    <div className="lg:w-32 flex-shrink-0">
+                      <h3 className="text-base font-semibold text-gray-900">Overview</h3>
+                    </div>
+
+                    {/* Right Side - Overview Data */}
+                    <div className="flex-1 border-2 border-brand-600 rounded-2xl p-4 sm:p-6">
+                      <div className="grid grid-cols-2 gap-6 sm:gap-8">
+                        {/* MOQ */}
+                        <div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">MOQ</div>
+                          <div className="text-sm font-semibold text-gray-900">{company.overview?.moq || "N/A"}</div>
+                        </div>
+
+                        {/* Lead Time */}
+                        <div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">Lead Time</div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {company.overview?.lead_time ? `${company.overview.lead_time} ${company.overview.lead_time_unit || "days"}` : "N/A"}
+                          </div>
+                        </div>
+
+                        {/* Delivery Terms */}
+                        <div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">Delivery Terms</div>
+                          <div className="text-sm font-semibold text-gray-900">{company.overview?.shipment_term || "N/A"}</div>
+                        </div>
+
+                        {/* Payment Policy */}
+                        <div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">Payment Policy</div>
+                          <div className="text-sm font-semibold text-gray-900">{company.overview?.payment_policy || "N/A"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Market Share Chart */}
+                  {company.overview?.market_share && company.overview.market_share.length > 0 && (
+                    <div className="flex flex-col lg:flex-row gap-6 lg:gap-12">
+                      {/* Left Side - Section Name */}
+                      <div className="lg:w-32 flex-shrink-0">
+                        <h3 className="text-base font-semibold text-gray-900">Market Share</h3>
+                      </div>
+
+                      {/* Right Side - Chart */}
+                      <div className="flex-1 border-2 border-brand-600 rounded-2xl p-4 sm:p-6">
+                        <div className="h-64 flex flex-col">
+                        {(() => {
+                          const validItems = company.overview.market_share.filter((item) => item.location_id && item.percentage);
+                          const maxValue = Math.max(...validItems.map((item) => parseInt(item.percentage) || 0), 60);
+                          const scale = 200 / maxValue;
+                          const step = Math.ceil(maxValue / 4);
+                          const ySteps = Array.from({ length: 5 }, (_, i) => i * step);
+
+                          return (
+                            <div className="flex-1 flex gap-4">
+                              {/* Y-Axis */}
+                              <div className="flex flex-col-reverse justify-between text-xs text-gray-600 pr-2 min-w-fit">
+                                {ySteps.map((val) => (
+                                  <div key={val}>{val}</div>
+                                ))}
+                              </div>
+                              {/* Chart Area */}
+                              <div className="flex-1 flex items-end justify-between gap-3 border-l border-b border-gray-400">
+                                {validItems.map((item, idx) => {
+                                  const percentage = parseInt(item.percentage) || 0;
+                                  const barHeight = percentage * scale;
+
+                                  return (
+                                    <div key={idx} className="flex flex-col items-center gap-2 flex-1 h-full">
+                                      <div className="w-full h-full flex items-end justify-center">
+                                        <div
+                                          className="w-3/4 bg-brand-600"
+                                          style={{ height: `${barHeight}px`, minHeight: '2px' }}
+                                        ></div>
+                                      </div>
+                                      <div className="text-xs text-gray-700 font-medium text-center whitespace-nowrap">
+                                        Country {item.location_id}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Yearly Turnover Chart */}
+                  {company.overview?.yearly_turnover && company.overview.yearly_turnover.length > 0 && (
+                    <div className="flex flex-col lg:flex-row gap-6 lg:gap-12">
+                      {/* Left Side - Section Name */}
+                      <div className="lg:w-32 flex-shrink-0">
+                        <h3 className="text-base font-semibold text-gray-900">Yearly Turnover</h3>
+                      </div>
+
+                      {/* Right Side - Chart */}
+                      <div className="flex-1 border-2 border-brand-600 rounded-2xl p-4 sm:p-6">
+                        <div className="h-64 flex flex-col">
+                        {(() => {
+                          const validItems = company.overview.yearly_turnover.filter((item) => item.year && item.turnover);
+                          const maxValue = Math.max(...validItems.map((item) => parseInt(item.turnover) || 0), 60);
+                          const scale = 200 / maxValue;
+                          const step = Math.ceil(maxValue / 4);
+                          const ySteps = Array.from({ length: 5 }, (_, i) => i * step);
+
+                          return (
+                            <div className="flex-1 flex gap-4">
+                              {/* Y-Axis */}
+                              <div className="flex flex-col-reverse justify-between text-xs text-gray-600 pr-2 min-w-fit">
+                                {ySteps.map((val) => (
+                                  <div key={val}>{val}</div>
+                                ))}
+                              </div>
+                              {/* Chart Area */}
+                              <div className="flex-1 flex items-end justify-between gap-3 border-l border-b border-gray-400">
+                                {validItems.map((item, idx) => {
+                                  const turnover = parseInt(item.turnover) || 0;
+                                  const barHeight = turnover * scale;
+
+                                  return (
+                                    <div key={idx} className="flex flex-col items-center gap-2 flex-1 h-full">
+                                      <div className="w-full h-full flex items-end justify-center">
+                                        <div
+                                          className="w-3/4 bg-brand-600"
+                                          style={{ height: `${barHeight}px`, minHeight: '2px' }}
+                                        ></div>
+                                      </div>
+                                      <div className="text-xs text-gray-700 font-medium text-center">{item.year}</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Other Tabs */}
+              {activeTab !== "profile" && (
+                <div className="text-center py-8 text-gray-600">
+                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Sidebar */}
