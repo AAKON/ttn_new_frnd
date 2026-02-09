@@ -393,7 +393,7 @@ export default function CompanyDetailClient({ company }) {
             <div className="bg-white rounded-lg p-4 sm:p-8">
               <div className="mb-6">
                 <div className="flex gap-8 border-b border-gray-200">
-                  {["profile", "clients", "contacts", "faq"].map((tab) => (
+                  {["profile", "certificates", "clients", "contacts", "faq"].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -640,10 +640,122 @@ export default function CompanyDetailClient({ company }) {
                 </div>
               )}
 
-              {/* Other Tabs */}
-              {activeTab !== "profile" && activeTab !== "clients" && (
-                <div className="text-center py-8 text-gray-600">
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
+              {/* Certificates Tab */}
+              {activeTab === "certificates" && (
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-6">Certificates</h3>
+                  {(company.certificates || []).length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {company.certificates.map((cert) => (
+                        <div
+                          key={cert.id}
+                          className="border rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow"
+                        >
+                          {cert.image_url ? (
+                            <img
+                              src={cert.image_url}
+                              alt={cert.name}
+                              className="w-16 h-16 object-contain mb-3"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mb-3">
+                              <svg className="w-8 h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                              </svg>
+                            </div>
+                          )}
+                          <p className="text-sm font-medium text-gray-900">{cert.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No certificates added yet</p>
+                  )}
+                </div>
+              )}
+
+              {/* Contacts Tab */}
+              {activeTab === "contacts" && (
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-6">Contact Information</h3>
+                  {contact && Object.keys(contact).length > 0 ? (
+                    <div className="space-y-4">
+                      {contact.address && (
+                        <div className="flex gap-3">
+                          <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">Address</span>
+                          <span className="text-sm text-gray-900">{contact.address}</span>
+                        </div>
+                      )}
+                      {contact.factory_address && (
+                        <div className="flex gap-3">
+                          <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">Factory Address</span>
+                          <span className="text-sm text-gray-900">{contact.factory_address}</span>
+                        </div>
+                      )}
+                      {contact.email && (
+                        <div className="flex gap-3">
+                          <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">Email</span>
+                          <a href={`mailto:${contact.email}`} className="text-sm text-brand-600 hover:underline">{contact.email}</a>
+                        </div>
+                      )}
+                      {contact.phone && (
+                        <div className="flex gap-3">
+                          <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">Phone</span>
+                          <a href={`tel:${contact.phone}`} className="text-sm text-brand-600 hover:underline">{contact.phone}</a>
+                        </div>
+                      )}
+                      {contact.whatsapp && (
+                        <div className="flex gap-3">
+                          <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">WhatsApp</span>
+                          <span className="text-sm text-gray-900">{contact.whatsapp}</span>
+                        </div>
+                      )}
+                      {contact.website && (
+                        <div className="flex gap-3">
+                          <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">Website</span>
+                          <a href={contact.website} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">{contact.website}</a>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No contact information available</p>
+                  )}
+
+                  {/* Decision Makers */}
+                  {(company.decision_makers || []).length > 0 && (
+                    <div className="mt-8">
+                      <h3 className="text-base font-semibold text-gray-900 mb-4">Decision Makers</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {company.decision_makers.map((dm) => (
+                          <div key={dm.id} className="border rounded-lg p-4">
+                            <p className="font-semibold text-gray-900 text-sm">{dm.name}</p>
+                            <p className="text-xs text-brand-600 mb-2">{dm.designation}</p>
+                            {dm.email && <p className="text-xs text-gray-600">{dm.email}</p>}
+                            {dm.phone && <p className="text-xs text-gray-600">{dm.phone}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* FAQ Tab */}
+              {activeTab === "faq" && (
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-6">Frequently Asked Questions</h3>
+                  {(company.faqs || []).length > 0 ? (
+                    <div className="space-y-4">
+                      {company.faqs.map((faq) => (
+                        <div key={faq.id} className="border rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 text-sm mb-2">{faq.question}</h4>
+                          <p className="text-sm text-gray-600">{faq.answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No FAQs added yet</p>
+                  )}
                 </div>
               )}
             </div>

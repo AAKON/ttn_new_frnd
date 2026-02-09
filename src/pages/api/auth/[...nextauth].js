@@ -25,33 +25,42 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const loginUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
+        try {
+          const loginUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
+          console.log("[NextAuth] Login URL:", loginUrl);
 
-        const res = await fetch(loginUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: credentials.email,
-            password: credentials.password,
-          }),
-        });
+          const res = await fetch(loginUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          });
 
-        const user = await res.json();
+          const user = await res.json();
+          console.log("[NextAuth] Response status:", res.status);
+          console.log("[NextAuth] Response body:", JSON.stringify(user));
 
-        if (res.ok && user.data) {
-          const tokenPayload = JSON.parse(
-            atob(user?.data?.access_token.split(".")[1])
-          );
-          return {
-            accessToken: user?.data?.access_token,
-            exp: tokenPayload.exp,
-            name: user?.data?.name,
-            user_name: user?.data?.name,
-            email: user?.data?.email,
-            profile_image: user?.data?.profile_picture,
-            roles: user?.data?.roles || [],
-          };
-        } else {
+          if (res.ok && user.data) {
+            const tokenPayload = JSON.parse(
+              atob(user?.data?.access_token.split(".")[1])
+            );
+            return {
+              accessToken: user?.data?.access_token,
+              exp: tokenPayload.exp,
+              name: user?.data?.name,
+              user_name: user?.data?.name,
+              email: user?.data?.email,
+              profile_image: user?.data?.profile_picture,
+              roles: user?.data?.roles || [],
+            };
+          } else {
+            console.log("[NextAuth] Login failed - res.ok:", res.ok, "user.data:", !!user.data);
+            return null;
+          }
+        } catch (error) {
+          console.error("[NextAuth] Authorize error:", error);
           return null;
         }
       },
