@@ -51,7 +51,7 @@ export default function MyCompaniesPage() {
               <h3 className="font-semibold text-gray-900">{c.name}</h3>
               <p className="text-sm mt-1">{c.moto}</p>
               <div className="flex gap-3 mt-4">
-                <Link href={`/myaccount/companies/${c.slug}`} className="text-sm text-brand-600 font-semibold">Edit</Link>
+                <Link href={`/company/${c.slug}/edit`} className="text-sm text-brand-600 font-semibold">Edit</Link>
                 <Link href={`/company/${c.slug}`} className="text-sm text-gray-500">View</Link>
               </div>
             </div>

@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
   return (
     <SessionProvider>
       <html lang="en">
-        <body className={`${inter.className} antialiased`}>
+        <body className={`${inter.className} antialiased`} suppressHydrationWarning>
           {children}
           <Toaster />
         </body>

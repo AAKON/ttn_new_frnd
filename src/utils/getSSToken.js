@@ -1,11 +1,11 @@
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import { getServerSession } from "next-auth/next";
+import { getSession } from "next-auth/react";
 
-let cachedToken;
 export async function getSSToken() {
-  if (!cachedToken) {
-    const session = await getServerSession(authOptions);
-    cachedToken = session?.accessToken;
+  try {
+    const session = await getSession();
+    return session?.accessToken || null;
+  } catch (error) {
+    console.error("Error getting token:", error);
+    return null;
   }
-  return cachedToken;
 }

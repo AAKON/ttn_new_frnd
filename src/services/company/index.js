@@ -1,6 +1,5 @@
 import { apiRequest } from "@/utils/api";
 import { getSession } from "next-auth/react";
-import { getSSToken } from "@/utils/getSSToken";
 
 export async function getDataPreBasic() {
   try {
@@ -37,7 +36,8 @@ export async function getDataPreBasic() {
 }
 
 export async function getDataPreOverview() {
-  const token = await getSSToken();
+  const session = await getSession();
+  const token = session?.accessToken;
   const endpoint = `my/company/preparation-data/for-overview`;
   const options = { method: "GET", cache: "no-store" };
   const result = await apiRequest(endpoint, options, null, token);
@@ -45,15 +45,15 @@ export async function getDataPreOverview() {
 }
 
 export async function getCompanyDetails(slug) {
-  const token = await getSSToken();
   const endpoint = `company/${slug}`;
   const options = { method: "GET", next: { revalidate: 60 }, cache: "force-cache" };
-  const result = await apiRequest(endpoint, options, null, token);
+  const result = await apiRequest(endpoint, options, null, null);
   return result?.data;
 }
 
 export async function getCompanyBasic(slug) {
-  const token = await getSSToken();
+  const session = await getSession();
+  const token = session?.accessToken;
   const endpoint = `my/company/edit/${slug}`;
   const options = { method: "GET", cache: "no-store" };
   return await apiRequest(endpoint, options, null, token);
