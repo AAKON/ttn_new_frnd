@@ -20,6 +20,7 @@ export default function EditCompanyPage() {
     locations: [],
     businessCategories: [],
     businessTypes: [],
+    certificates: [],
   });
 
   const [formData, setFormData] = useState({
@@ -62,6 +63,16 @@ export default function EditCompanyPage() {
 
   const [marketShare, setMarketShare] = useState([]);
   const [yearlyTurnover, setYearlyTurnover] = useState([]);
+
+  const [clients, setClients] = useState([]);
+  const [clientFile, setClientFile] = useState(null);
+  const [clientImagePreview, setClientImagePreview] = useState(null);
+  const [uploadingClient, setUploadingClient] = useState(false);
+
+  const [certificates, setCertificates] = useState([]);
+  const [selectedCertificateId, setSelectedCertificateId] = useState("");
+  const [availableCertificates, setAvailableCertificates] = useState([]);
+  const [showCertificateDropdown, setShowCertificateDropdown] = useState(false);
 
   // Handle responsive slider items
   useEffect(() => {
@@ -135,6 +146,22 @@ export default function EditCompanyPage() {
           console.log("Products loaded from API:", productsData);
           setProducts(productsData);
 
+          // Load clients
+          const clientsResult = await apiRequest(
+            `my/company/${slug}/client`,
+            { method: "GET", cache: "no-store" },
+            null,
+            session?.accessToken
+          );
+          if (Array.isArray(clientsResult?.data)) {
+            setClients(clientsResult.data);
+          }
+
+          // Load certificates
+          if (company.certificates && Array.isArray(company.certificates)) {
+            setCertificates(company.certificates);
+          }
+
           setSelectedCategories(company.business_categories || company.businessCategories || []);
           setSelectedTypes(company.business_types || company.businessTypes || []);
 
@@ -188,7 +215,9 @@ export default function EditCompanyPage() {
             locations: result.data.locations || [],
             businessCategories: result.data.businessCategories || result.data.business_categories || [],
             businessTypes: result.data.businessTypes || result.data.business_types || [],
+            certificates: result.data.certificates || [],
           });
+          setAvailableCertificates(result.data.certificates || []);
         }
       } catch (error) {
         console.error("Failed to fetch filter options", error);
@@ -322,6 +351,145 @@ export default function EditCompanyPage() {
       console.error("Failed to save product", error);
       const errorMsg = error?.data?.message || error?.message || "Unknown error";
       alert("Failed to save product: " + errorMsg);
+    }
+  };
+
+  const handleClientFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setClientFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setClientImagePreview(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadClient = async () => {
+    if (!clientFile) {
+      alert("Please select a client logo");
+      return;
+    }
+
+    setUploadingClient(true);
+    try {
+      const data = new FormData();
+      data.append("image", clientFile);
+
+      const result = await apiRequest(
+        `my/company/${slug}/client/store`,
+        {
+          method: "POST",
+          isFormData: true,
+          body: data,
+        },
+        null,
+        session?.accessToken
+      );
+
+      if (result?.status || result?.data) {
+        // Refresh clients list
+        const clientsResult = await apiRequest(
+          `my/company/${slug}/client`,
+          { method: "GET", cache: "no-store" },
+          null,
+          session?.accessToken
+        );
+
+        if (Array.isArray(clientsResult?.data)) {
+          setClients(clientsResult.data);
+        }
+
+        // Reset form
+        setClientFile(null);
+        setClientImagePreview(null);
+        alert("Client logo added successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to upload client", error);
+      const errorMsg = error?.data?.message || error?.message || "Unknown error";
+      alert("Failed to upload client: " + errorMsg);
+    } finally {
+      setUploadingClient(false);
+    }
+  };
+
+  const deleteClient = async (clientId) => {
+    if (!confirm("Are you sure you want to delete this client?")) return;
+
+    try {
+      const result = await apiRequest(
+        `my/company/${slug}/client/${clientId}/delete`,
+        { method: "POST" },
+        null,
+        session?.accessToken
+      );
+
+      if (result?.status || result?.data) {
+        // Refresh clients list
+        const clientsResult = await apiRequest(
+          `my/company/${slug}/client`,
+          { method: "GET", cache: "no-store" },
+          null,
+          session?.accessToken
+        );
+
+        if (Array.isArray(clientsResult?.data)) {
+          setClients(clientsResult.data);
+        }
+
+        alert("Client deleted successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to delete client", error);
+      alert("Failed to delete client");
+    }
+  };
+
+  const addCertificate = () => {
+    if (!selectedCertificateId) {
+      alert("Please select a certificate");
+      return;
+    }
+
+    // Check if certificate already added
+    if (certificates.some(c => c.id === parseInt(selectedCertificateId))) {
+      alert("This certificate is already added");
+      return;
+    }
+
+    const selected = availableCertificates.find(c => c.id === parseInt(selectedCertificateId));
+    if (selected) {
+      setCertificates([...certificates, selected]);
+      setSelectedCertificateId("");
+      setShowCertificateDropdown(false);
+    }
+  };
+
+  const removeCertificate = (certificateId) => {
+    setCertificates(certificates.filter(c => c.id !== certificateId));
+  };
+
+  const saveCertificates = async () => {
+    try {
+      const certificateIds = certificates.map(c => c.id);
+      const result = await apiRequest(
+        `my/company/certificates/${slug}`,
+        {
+          method: "POST",
+          body: { certificates: certificateIds }
+        },
+        null,
+        session?.accessToken
+      );
+
+      if (result?.status || result?.data) {
+        alert("Certificates updated successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to update certificates", error);
+      alert("Failed to update certificates: " + (error?.data?.message || error?.message));
     }
   };
 
@@ -622,15 +790,15 @@ export default function EditCompanyPage() {
                   {selectedCategories.map((category, index) => (
                     <div
                       key={index}
-                      className="bg-gray-200 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                      className="bg-gray-100 border border-gray-200 px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors"
                     >
-                      {category.name || category}
+                      <span className="text-gray-700 font-medium">{category.name || category}</span>
                       <button
                         type="button"
                         onClick={() =>
                           setSelectedCategories((prev) => prev.filter((_, i) => i !== index))
                         }
-                        className="text-gray-600 hover:text-gray-900"
+                        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-300 transition-colors text-lg"
                       >
                         ×
                       </button>
@@ -669,13 +837,13 @@ export default function EditCompanyPage() {
                   {selectedTypes.map((type, index) => (
                     <div
                       key={index}
-                      className="bg-gray-200 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                      className="bg-gray-100 border border-gray-200 px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors"
                     >
-                      {type.name || type}
+                      <span className="text-gray-700 font-medium">{type.name || type}</span>
                       <button
                         type="button"
                         onClick={() => setSelectedTypes((prev) => prev.filter((_, i) => i !== index))}
-                        className="text-gray-600 hover:text-gray-900"
+                        className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-300 transition-colors text-lg"
                       >
                         ×
                       </button>
@@ -1441,8 +1609,150 @@ export default function EditCompanyPage() {
                   </form>
                 )}
 
+                {/* Clients Tab */}
+                {activeTab === "clients" && (
+                  <div className="space-y-8">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 mb-6">Clients</h2>
+
+                      {/* Client Logo Upload */}
+                      <div className="mb-8">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Client logo</label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => document.getElementById('clientFileInput').click()}
+                        >
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="w-12 h-12 bg-brand-600 rounded-full flex items-center justify-center mb-3">
+                              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </div>
+                            <p className="text-brand-600 font-medium">Drag or click to upload files</p>
+                          </div>
+                          <input
+                            id="clientFileInput"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleClientFileChange}
+                            className="hidden"
+                          />
+                        </div>
+
+                        {/* Preview */}
+                        {clientImagePreview && (
+                          <div className="mt-4 flex justify-center">
+                            <img src={clientImagePreview} alt="Preview" className="h-20 w-20 object-contain" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Done Button */}
+                      <button
+                        onClick={uploadClient}
+                        disabled={uploadingClient || !clientFile}
+                        className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {uploadingClient ? "Uploading..." : "Done"}
+                      </button>
+                    </div>
+
+                    {/* Existing Clients */}
+                    {clients.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-6">Existing Clients</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+                          {clients.map((client) => (
+                            <div key={client.id} className="relative group">
+                              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-24">
+                                {client.image_url ? (
+                                  <img
+                                    src={client.image_url}
+                                    alt="Client"
+                                    className="h-full w-full object-contain"
+                                  />
+                                ) : (
+                                  <span className="text-gray-400 text-xs">No image</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => deleteClient(client.id)}
+                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Certificates Tab */}
+                {activeTab === "certificates" && (
+                  <div className="space-y-8">
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Certificates
+                      </label>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {certificates.map((certificate, index) => (
+                          <div
+                            key={index}
+                            className="bg-gray-100 border border-gray-200 px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="text-gray-700 font-medium">{certificate.name || certificate}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCertificates((prev) => prev.filter((_, i) => i !== index))
+                              }
+                              className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-300 transition-colors text-lg"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const selected = availableCertificates.find(
+                              (cert) => cert.id === parseInt(e.target.value)
+                            );
+                            if (selected && !certificates.some((c) => c.id === selected.id)) {
+                              setCertificates((prev) => [...prev, selected]);
+                            }
+                            e.target.value = "";
+                          }
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                      >
+                        <option value="">Add new...</option>
+                        {availableCertificates
+                          .filter((cert) => !certificates.some((c) => c.id === cert.id))
+                          .map((certificate) => (
+                            <option key={certificate.id} value={certificate.id}>
+                              {certificate.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* Save Button */}
+                    <button
+                      onClick={saveCertificates}
+                      className="bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
+
                 {/* Other tabs - placeholder */}
-                {activeTab !== "profile" && (
+                {activeTab !== "profile" && activeTab !== "clients" && activeTab !== "certificates" && (
                   <div className="text-center py-8 text-gray-600">
                     {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
                   </div>

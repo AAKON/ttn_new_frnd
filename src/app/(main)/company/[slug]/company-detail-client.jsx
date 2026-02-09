@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { getMyCompanies } from "@/services/company";
@@ -15,6 +15,15 @@ export default function CompanyDetailClient({ company }) {
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
   const [itemsPerSlide, setItemsPerSlide] = useState(4);
   const [activeTab, setActiveTab] = useState("profile");
+  const [clientSlideIndex, setClientSlideIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isHoveringClients, setIsHoveringClients] = useState(false);
+
+  // Use refs to avoid closure issues
+  const dragStartRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -43,6 +52,68 @@ export default function CompanyDetailClient({ company }) {
   useEffect(() => {
     setProductCarouselIndex(0);
   }, [activeProductTab]);
+
+  // Auto-slide clients continuously (paused on hover)
+  useEffect(() => {
+    const clients = company.clients || [];
+    if (clients.length === 0 || isHoveringClients || isDragging) return;
+
+    const interval = setInterval(() => {
+      setClientSlideIndex((prev) => (prev + 1) % (clients.length * 2));
+    }, 4000); // Change slide every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [company.clients, isHoveringClients, isDragging]);
+
+  const handleMouseDown = (e) => {
+    dragStartRef.current = e.clientX;
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    setDragOffset(0);
+  };
+
+  // Handle drag with global event listeners
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      const diff = e.clientX - dragStartRef.current;
+      setDragOffset(diff);
+    };
+
+    const handleMouseUp = (e) => {
+      if (!isDraggingRef.current) return;
+
+      const diff = e.clientX - dragStartRef.current;
+      const clients = company.clients || [];
+
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      setDragOffset(0);
+
+      // If dragged more than 50px, move to next/previous slide
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          // Dragged right - go to previous slide
+          setClientSlideIndex((prev) => (prev - 1 + clients.length * 2) % (clients.length * 2));
+        } else {
+          // Dragged left - go to next slide
+          setClientSlideIndex((prev) => (prev + 1) % (clients.length * 2));
+        }
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [company.clients]);
+
+  const handleContainerMouseLeave = () => {
+    setIsHoveringClients(false);
+  };
 
   useEffect(() => {
     if (!isHydrated || !session) {
@@ -87,13 +158,6 @@ export default function CompanyDetailClient({ company }) {
   const currentCategory = productCategories[activeProductTab] || productCategories[0];
   const currentProducts = productsByCategory[currentCategory] || [];
 
-  // Debug logging
-  if (isHydrated && products.length > 0) {
-    console.log("Products data:", products);
-    console.log("Product categories:", productCategories);
-    console.log("Current category:", currentCategory);
-    console.log("Current products:", currentProducts);
-  }
 
   return (
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
@@ -500,8 +564,84 @@ export default function CompanyDetailClient({ company }) {
                 </div>
               )}
 
+              {/* Clients Tab */}
+              {activeTab === "clients" && (
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-6">Clients</h3>
+                  {(company.clients || []).length > 0 ? (
+                    <div className="relative">
+                      {/* Auto-scrolling Clients Slider */}
+                      <div
+                        ref={containerRef}
+                        className="overflow-hidden bg-gray-50 rounded-lg p-6 cursor-grab active:cursor-grabbing select-none"
+                        onMouseEnter={() => setIsHoveringClients(true)}
+                        onMouseLeave={handleContainerMouseLeave}
+                        onMouseDown={handleMouseDown}
+                      >
+                        <style>{`
+                          @keyframes scroll-left {
+                            0% {
+                              transform: translateX(0);
+                            }
+                            100% {
+                              transform: translateX(-100%);
+                            }
+                          }
+                          .scroll-animation {
+                            animation: scroll-left ${company.clients.length * 4}s linear infinite;
+                          }
+                          .scroll-animation.paused {
+                            animation-play-state: paused;
+                          }
+                        `}</style>
+                        <div
+                          className={`flex gap-6 ${!isDragging && !isHoveringClients ? 'scroll-animation' : ''}`}
+                          style={{
+                            transform: (() => {
+                              const baseTransform = -clientSlideIndex * 100;
+                              if (isDragging && containerRef.current) {
+                                const containerWidth = containerRef.current.offsetWidth;
+                                const dragPercent = (dragOffset / containerWidth) * 100;
+                                console.log('Transform:', `translateX(${baseTransform + dragPercent}%)`);
+                                return `translateX(${baseTransform + dragPercent}%)`;
+                              }
+                              return `translateX(${baseTransform}%)`;
+                            })(),
+                            transition: isDragging ? 'none' : 'transform 0.6s ease-out'
+                          }}
+                        >
+                          {/* Duplicate clients for seamless loop */}
+                          {[...company.clients, ...company.clients].map((client, index) => (
+                            <div
+                              key={`${client.id}-${index}`}
+                              className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/4 flex items-center justify-center select-none"
+                              draggable={false}
+                            >
+                              <div className="bg-white rounded-lg p-4 shadow-sm flex items-center justify-center h-24 w-full">
+                                {client.image_url ? (
+                                  <img
+                                    src={client.image_url}
+                                    alt="Client"
+                                    className="h-full w-full object-contain"
+                                    draggable={false}
+                                  />
+                                ) : (
+                                  <span className="text-gray-400 text-sm">No image</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No clients added yet</p>
+                  )}
+                </div>
+              )}
+
               {/* Other Tabs */}
-              {activeTab !== "profile" && (
+              {activeTab !== "profile" && activeTab !== "clients" && (
                 <div className="text-center py-8 text-gray-600">
                   {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
                 </div>
