@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { apiRequest } from "@/utils/api";
 import { getMyCompanies } from "@/services/company";
 import { Trash2, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
+import PhoneCountryInput from "@/components/PhoneCountryInput";
 
 export default function EditCompanyPage() {
   const router = useRouter();
@@ -73,6 +74,30 @@ export default function EditCompanyPage() {
   const [selectedCertificateId, setSelectedCertificateId] = useState("");
   const [availableCertificates, setAvailableCertificates] = useState([]);
   const [showCertificateDropdown, setShowCertificateDropdown] = useState(false);
+
+  const [contact, setContact] = useState({
+    address: "",
+    factory_address: "",
+    email: "",
+    phone: "",
+    phone_code: "US",
+    whatsapp: "",
+    whatsapp_code: "US",
+    website: "",
+    latitude: "",
+    longitude: "",
+  });
+
+  const [decisionMakers, setDecisionMakers] = useState([]);
+  const [newDecisionMaker, setNewDecisionMaker] = useState({
+    name: "",
+    designation: "",
+    email: "",
+    phone: "",
+    phone_code: "US",
+    whatsapp: "",
+    whatsapp_code: "US",
+  });
 
   // Handle responsive slider items
   useEffect(() => {
@@ -160,6 +185,27 @@ export default function EditCompanyPage() {
           // Load certificates
           if (company.certificates && Array.isArray(company.certificates)) {
             setCertificates(company.certificates);
+          }
+
+          // Load contact information
+          if (company.contact) {
+            setContact({
+              address: company.contact.address || "",
+              factory_address: company.contact.factory_address || "",
+              email: company.contact.email || "",
+              phone: company.contact.phone || "",
+              phone_code: company.contact.phone_code || "US",
+              whatsapp: company.contact.whatsapp || "",
+              whatsapp_code: company.contact.whatsapp_code || "US",
+              website: company.contact.website || "",
+              latitude: company.contact.latitude || "",
+              longitude: company.contact.longitude || "",
+            });
+          }
+
+          // Load decision makers
+          if (company.decision_makers && Array.isArray(company.decision_makers)) {
+            setDecisionMakers(company.decision_makers);
           }
 
           setSelectedCategories(company.business_categories || company.businessCategories || []);
@@ -490,6 +536,164 @@ export default function EditCompanyPage() {
     } catch (error) {
       console.error("Failed to update certificates", error);
       alert("Failed to update certificates: " + (error?.data?.message || error?.message));
+    }
+  };
+
+  const handleContactChange = (e) => {
+    const { name, value } = e.target;
+    setContact((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePhoneCountryChange = (countryCode) => {
+    setContact((prev) => ({
+      ...prev,
+      phone_code: countryCode,
+    }));
+  };
+
+  const handlePhoneNumberChange = (phoneNumber) => {
+    setContact((prev) => ({
+      ...prev,
+      phone: phoneNumber,
+    }));
+  };
+
+  const handleWhatsappCountryChange = (countryCode) => {
+    setContact((prev) => ({
+      ...prev,
+      whatsapp_code: countryCode,
+    }));
+  };
+
+  const handleWhatsappNumberChange = (whatsappNumber) => {
+    setContact((prev) => ({
+      ...prev,
+      whatsapp: whatsappNumber,
+    }));
+  };
+
+  const handleDecisionMakerChange = (e) => {
+    const { name, value } = e.target;
+    setNewDecisionMaker((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleDMPhoneCountryChange = (countryCode) => {
+    setNewDecisionMaker((prev) => ({
+      ...prev,
+      phone_code: countryCode,
+    }));
+  };
+
+  const handleDMPhoneNumberChange = (phoneNumber) => {
+    setNewDecisionMaker((prev) => ({
+      ...prev,
+      phone: phoneNumber,
+    }));
+  };
+
+  const handleDMWhatsappCountryChange = (countryCode) => {
+    setNewDecisionMaker((prev) => ({
+      ...prev,
+      whatsapp_code: countryCode,
+    }));
+  };
+
+  const handleDMWhatsappNumberChange = (whatsappNumber) => {
+    setNewDecisionMaker((prev) => ({
+      ...prev,
+      whatsapp: whatsappNumber,
+    }));
+  };
+
+  const addDecisionMaker = () => {
+    if (!newDecisionMaker.name || !newDecisionMaker.designation) {
+      alert("Please fill in Name and Designation");
+      return;
+    }
+    setDecisionMakers((prev) => [...prev, { ...newDecisionMaker, id: Date.now() }]);
+    setNewDecisionMaker({
+      name: "",
+      designation: "",
+      email: "",
+      phone: "",
+      whatsapp: "",
+    });
+  };
+
+  const removeDecisionMaker = (id) => {
+    setDecisionMakers((prev) => prev.filter((dm) => dm.id !== id));
+  };
+
+  const saveContact = async () => {
+    try {
+      const payload = {
+        address: contact.address || null,
+        factory_address: contact.factory_address || null,
+        email: contact.email || null,
+        phone: contact.phone || null,
+        phone_code: contact.phone_code || null,
+        whatsapp: contact.whatsapp || null,
+        whatsapp_code: contact.whatsapp_code || null,
+        website: contact.website || null,
+        latitude: contact.latitude || null,
+        longitude: contact.longitude || null,
+      };
+
+      const result = await apiRequest(
+        `my/company/${slug}/contact/store-or-update`,
+        {
+          method: "POST",
+          body: payload,
+        },
+        null,
+        session?.accessToken
+      );
+
+      if (result?.status || result?.data) {
+        alert("Contact information saved successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to save contact", error);
+      alert("Failed to save contact: " + (error?.data?.message || error?.message));
+    }
+  };
+
+  const saveDecisionMakers = async () => {
+    try {
+      const payload = {
+        decision_makers: decisionMakers.map((dm) => ({
+          name: dm.name,
+          designation: dm.designation,
+          email: dm.email || null,
+          phone: dm.phone || null,
+          phone_code: dm.phone_code || null,
+          whatsapp: dm.whatsapp || null,
+          whatsapp_code: dm.whatsapp_code || null,
+        })),
+      };
+
+      const result = await apiRequest(
+        `my/company/${slug}/decision-makers`,
+        {
+          method: "POST",
+          body: payload,
+        },
+        null,
+        session?.accessToken
+      );
+
+      if (result?.status || result?.data) {
+        alert("Decision makers saved successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to save decision makers", error);
+      alert("Failed to save decision makers: " + (error?.data?.message || error?.message));
     }
   };
 
@@ -1751,10 +1955,278 @@ export default function EditCompanyPage() {
                   </div>
                 )}
 
-                {/* Other tabs - placeholder */}
-                {activeTab !== "profile" && activeTab !== "clients" && activeTab !== "certificates" && (
+                {/* Contacts Tab */}
+                {activeTab === "contacts" && (
+                  <div className="space-y-8">
+                    {/* Contact Section */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-brand-600 mb-6">Contact</h3>
+
+                      <div className="space-y-6">
+                        {/* Business Section Header */}
+                        <div className="mb-4">
+                          <h4 className="text-sm font-medium text-gray-900">Business</h4>
+                        </div>
+
+                        {/* Address (Office) */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Address (Office) <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            value={contact.address}
+                            onChange={handleContactChange}
+                            placeholder="Enter office address"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                          />
+                        </div>
+
+                        {/* Address (Factory) */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Address (Factory)
+                          </label>
+                          <input
+                            type="text"
+                            name="factory_address"
+                            value={contact.factory_address}
+                            onChange={handleContactChange}
+                            placeholder="Enter factory address"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                          />
+                        </div>
+
+                        {/* Email */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Email <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            name="email"
+                            value={contact.email}
+                            onChange={handleContactChange}
+                            placeholder="example@email.com"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                          />
+                        </div>
+
+                        {/* Phone with Country Code */}
+                        <PhoneCountryInput
+                          label="Phone"
+                          required={true}
+                          countryCode={contact.phone_code}
+                          phoneNumber={contact.phone}
+                          onCountryChange={handlePhoneCountryChange}
+                          onPhoneChange={handlePhoneNumberChange}
+                          locations={filterOptions.locations}
+                          placeholder="Enter phone number"
+                        />
+
+                        {/* WhatsApp with Country Code */}
+                        <PhoneCountryInput
+                          label="WhatsApp"
+                          countryCode={contact.whatsapp_code}
+                          phoneNumber={contact.whatsapp}
+                          onCountryChange={handleWhatsappCountryChange}
+                          onPhoneChange={handleWhatsappNumberChange}
+                          locations={filterOptions.locations}
+                          placeholder="Enter WhatsApp number"
+                        />
+
+                        {/* Website */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Website
+                          </label>
+                          <input
+                            type="url"
+                            name="website"
+                            value={contact.website}
+                            onChange={handleContactChange}
+                            placeholder="https://example.com"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                          />
+                        </div>
+
+                        {/* Location Latitude and Longitude - 2 columns */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Location Latitude
+                            </label>
+                            <input
+                              type="text"
+                              name="latitude"
+                              value={contact.latitude}
+                              onChange={handleContactChange}
+                              placeholder="40.7128"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Location Longitude
+                            </label>
+                            <input
+                              type="text"
+                              name="longitude"
+                              value={contact.longitude}
+                              onChange={handleContactChange}
+                              placeholder="-74.0060"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Map Placeholder */}
+                        <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center border border-gray-300">
+                          <span className="text-gray-500">Map preview (coordinates: {contact.latitude || "N/A"}, {contact.longitude || "N/A"})</span>
+                        </div>
+
+                        {/* Save Button */}
+                        <button
+                          onClick={saveContact}
+                          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-lg transition-colors"
+                        >
+                          Submit
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Decision Maker Section */}
+                    <div className="border-t pt-8">
+                      <h3 className="text-lg font-semibold text-brand-600 mb-6">Decision Maker</h3>
+
+                      <div className="space-y-6">
+                        {/* Form for New Decision Maker */}
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="name"
+                              value={newDecisionMaker.name}
+                              onChange={handleDecisionMakerChange}
+                              placeholder="Enter Name"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Designation <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="designation"
+                              value={newDecisionMaker.designation}
+                              onChange={handleDecisionMakerChange}
+                              placeholder="Enter Designation"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Email <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="email"
+                              name="email"
+                              value={newDecisionMaker.email}
+                              onChange={handleDecisionMakerChange}
+                              placeholder="Enter Email"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+                            />
+                          </div>
+
+                          {/* Phone with Country Code */}
+                          <PhoneCountryInput
+                            label="Phone"
+                            countryCode={newDecisionMaker.phone_code}
+                            phoneNumber={newDecisionMaker.phone}
+                            onCountryChange={handleDMPhoneCountryChange}
+                            onPhoneChange={handleDMPhoneNumberChange}
+                            locations={filterOptions.locations}
+                            placeholder="Enter phone number"
+                          />
+
+                          {/* WhatsApp with Country Code */}
+                          <PhoneCountryInput
+                            label="WhatsApp"
+                            countryCode={newDecisionMaker.whatsapp_code}
+                            phoneNumber={newDecisionMaker.whatsapp}
+                            onCountryChange={handleDMWhatsappCountryChange}
+                            onPhoneChange={handleDMWhatsappNumberChange}
+                            locations={filterOptions.locations}
+                            placeholder="Enter WhatsApp number"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={addDecisionMaker}
+                            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-lg transition-colors"
+                          >
+                            Done
+                          </button>
+                        </div>
+
+                        {/* Decision Makers List */}
+                        {decisionMakers.length > 0 && (
+                          <div className="border-t pt-6">
+                            <h4 className="text-sm font-medium text-gray-900 mb-4">Added Decision Makers</h4>
+                            <div className="space-y-4">
+                              {decisionMakers.map((dm) => {
+                                const phoneDisplay = dm.phone_code && dm.phone ? `${dm.phone_code} ${dm.phone}` : dm.phone;
+                                const whatsappDisplay = dm.whatsapp_code && dm.whatsapp ? `${dm.whatsapp_code} ${dm.whatsapp}` : dm.whatsapp;
+                                return (
+                                  <div key={dm.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                    <div className="flex justify-between items-start mb-3">
+                                      <div>
+                                        <h5 className="font-semibold text-gray-900">{dm.name}</h5>
+                                        <p className="text-xs text-brand-600 mb-2">{dm.designation}</p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeDecisionMaker(dm.id)}
+                                        className="text-red-500 hover:text-red-700 font-medium text-sm"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                    {dm.email && <p className="text-xs text-gray-600">{dm.email}</p>}
+                                    {dm.phone && <p className="text-xs text-gray-600">{phoneDisplay}</p>}
+                                    {dm.whatsapp && <p className="text-xs text-gray-600">WhatsApp: {whatsappDisplay}</p>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Save All Button */}
+                        {decisionMakers.length > 0 && (
+                          <button
+                            onClick={saveDecisionMakers}
+                            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-lg transition-colors"
+                          >
+                            Save Decision Makers
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* FAQ Tab - placeholder */}
+                {activeTab === "faq" && (
                   <div className="text-center py-8 text-gray-600">
-                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} section coming soon...
+                    FAQ section coming soon...
                   </div>
                 )}
               </div>

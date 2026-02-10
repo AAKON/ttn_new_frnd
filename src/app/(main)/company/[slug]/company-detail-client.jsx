@@ -393,7 +393,7 @@ export default function CompanyDetailClient({ company }) {
             <div className="bg-white rounded-lg p-4 sm:p-8">
               <div className="mb-6">
                 <div className="flex gap-8 border-b border-gray-200">
-                  {["profile", "certificates", "clients", "contacts", "faq"].map((tab) => (
+                  {["profile", "clients", "certificates", "contacts", "faq"].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -701,13 +701,17 @@ export default function CompanyDetailClient({ company }) {
                       {contact.phone && (
                         <div className="flex gap-3">
                           <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">Phone</span>
-                          <a href={`tel:${contact.phone}`} className="text-sm text-brand-600 hover:underline">{contact.phone}</a>
+                          <a href={`tel:${contact.phone}`} className="text-sm text-brand-600 hover:underline">
+                            {contact.phone_code && contact.phone ? `${contact.phone_code} ${contact.phone}` : contact.phone}
+                          </a>
                         </div>
                       )}
                       {contact.whatsapp && (
                         <div className="flex gap-3">
                           <span className="text-sm font-medium text-gray-500 w-32 flex-shrink-0">WhatsApp</span>
-                          <span className="text-sm text-gray-900">{contact.whatsapp}</span>
+                          <span className="text-sm text-gray-900">
+                            {contact.whatsapp_code && contact.whatsapp ? `${contact.whatsapp_code} ${contact.whatsapp}` : contact.whatsapp}
+                          </span>
                         </div>
                       )}
                       {contact.website && (
@@ -726,14 +730,19 @@ export default function CompanyDetailClient({ company }) {
                     <div className="mt-8">
                       <h3 className="text-base font-semibold text-gray-900 mb-4">Decision Makers</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {company.decision_makers.map((dm) => (
-                          <div key={dm.id} className="border rounded-lg p-4">
-                            <p className="font-semibold text-gray-900 text-sm">{dm.name}</p>
-                            <p className="text-xs text-brand-600 mb-2">{dm.designation}</p>
-                            {dm.email && <p className="text-xs text-gray-600">{dm.email}</p>}
-                            {dm.phone && <p className="text-xs text-gray-600">{dm.phone}</p>}
-                          </div>
-                        ))}
+                        {company.decision_makers.map((dm) => {
+                          const phoneDisplay = dm.phone_code && dm.phone ? `${dm.phone_code} ${dm.phone}` : dm.phone;
+                          const whatsappDisplay = dm.whatsapp_code && dm.whatsapp ? `${dm.whatsapp_code} ${dm.whatsapp}` : dm.whatsapp;
+                          return (
+                            <div key={dm.id} className="border rounded-lg p-4">
+                              <p className="font-semibold text-gray-900 text-sm">{dm.name}</p>
+                              <p className="text-xs text-brand-600 mb-2">{dm.designation}</p>
+                              {dm.email && <p className="text-xs text-gray-600">{dm.email}</p>}
+                              {dm.phone && <p className="text-xs text-gray-600">{phoneDisplay}</p>}
+                              {dm.whatsapp && <p className="text-xs text-gray-600">{whatsappDisplay}</p>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
