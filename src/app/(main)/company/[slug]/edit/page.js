@@ -490,7 +490,7 @@ export default function EditCompanyPage() {
     try {
       const result = await apiRequest(
         `my/company/${slug}/client/${clientId}/delete`,
-        { method: "POST" },
+        { method: "GET" },
         null,
         session?.accessToken
       );

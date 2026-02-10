@@ -24,6 +24,8 @@ export default function CompanyDetailClient({ company }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeProductTab, setActiveProductTab] = useState(0);
   const [expandedAbout, setExpandedAbout] = useState(false);
+  const [aboutClamped, setAboutClamped] = useState(false);
+  const aboutRef = useRef(null);
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
   const [itemsPerSlide, setItemsPerSlide] = useState(4);
   const [activeTab, setActiveTab] = useState("profile");
@@ -41,6 +43,13 @@ export default function CompanyDetailClient({ company }) {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    const el = aboutRef.current;
+    if (el) {
+      setAboutClamped(el.scrollHeight > el.clientHeight);
+    }
+  }, [company?.about, company?.description]);
 
   // Handle responsive slider items
   useEffect(() => {
@@ -280,16 +289,19 @@ export default function CompanyDetailClient({ company }) {
             <div className="bg-white rounded-lg p-4 sm:p-8">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">About Company</h2>
               <div
+                ref={aboutRef}
                 className={`text-gray-600 text-xs sm:text-sm leading-relaxed ${!expandedAbout ? "line-clamp-3" : ""}`}
               >
                 {company.about || company.description || "No description available."}
               </div>
-              <button
-                onClick={() => setExpandedAbout(!expandedAbout)}
-                className="text-brand-600 font-semibold text-xs sm:text-sm mt-2 hover:text-brand-700"
-              >
-                See More →
-              </button>
+              {(aboutClamped || expandedAbout) && (
+                <span
+                  onClick={() => setExpandedAbout(!expandedAbout)}
+                  className="text-brand-600 font-semibold text-xs sm:text-sm mt-2 inline-block cursor-pointer hover:text-brand-700"
+                >
+                  {expandedAbout ? "See Less ←" : "See More →"}
+                </span>
+              )}
             </div>
 
             {/* Products Showcase Section */}
