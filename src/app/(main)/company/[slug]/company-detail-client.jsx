@@ -3,8 +3,20 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 import { getMyCompanies } from "@/services/company";
 import { Share2, Bookmark, ChevronLeft, ChevronRight, AlertCircle, Download, Grid3x3, Building2, MapPin, Eye, Edit2 } from "lucide-react";
+
+const MapComponent = dynamic(() => import("@/components/MapComponent"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full border border-gray-200 rounded-lg overflow-hidden bg-gray-100" style={{ height: "300px" }}>
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-gray-500">Loading map...</p>
+      </div>
+    </div>
+  ),
+});
 
 export default function CompanyDetailClient({ company }) {
   const { data: session } = useSession();
@@ -18,6 +30,7 @@ export default function CompanyDetailClient({ company }) {
   const [clientSlideIndex, setClientSlideIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
+  const [expandedFaqId, setExpandedFaqId] = useState(null);
   const [isHoveringClients, setIsHoveringClients] = useState(false);
 
   // Use refs to avoid closure issues
@@ -725,6 +738,17 @@ export default function CompanyDetailClient({ company }) {
                     <p className="text-gray-500 text-center py-8">No contact information available</p>
                   )}
 
+                  {/* Location Map */}
+                  {contact.latitude && contact.longitude && (
+                    <div className="mt-8">
+                      <h3 className="text-base font-semibold text-gray-900 mb-4">Location</h3>
+                      <MapComponent
+                        latitude={contact.latitude}
+                        longitude={contact.longitude}
+                      />
+                    </div>
+                  )}
+
                   {/* Decision Makers */}
                   {(company.decision_makers || []).length > 0 && (
                     <div className="mt-8">
@@ -752,13 +776,42 @@ export default function CompanyDetailClient({ company }) {
               {/* FAQ Tab */}
               {activeTab === "faq" && (
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-6">Frequently Asked Questions</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Frequently asked questions</h3>
                   {(company.faqs || []).length > 0 ? (
                     <div className="space-y-4">
                       {company.faqs.map((faq) => (
-                        <div key={faq.id} className="border rounded-lg p-4">
-                          <h4 className="font-semibold text-gray-900 text-sm mb-2">{faq.question}</h4>
-                          <p className="text-sm text-gray-600">{faq.answer}</p>
+                        <div key={faq.id} className="">
+                          <button
+                            onClick={() =>
+                              setExpandedFaqId(expandedFaqId === faq.id ? null : faq.id)
+                            }
+                            className="w-full py-4 px-4 flex items-start gap-3 hover:bg-gray-50 transition-colors text-left !bg-transparent !text-gray-900"
+                          >
+                            {/* Expand/Collapse Icon */}
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full">
+                              {expandedFaqId === faq.id ? (
+                                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                              )}
+                            </div>
+
+                            {/* Question */}
+                            <span className="font-semibold text-gray-900 text-sm flex-1">
+                              {faq.question}
+                            </span>
+                          </button>
+
+                          {/* Answer */}
+                          {expandedFaqId === faq.id && (
+                            <div className="px-4 pb-4 ml-12 text-sm text-gray-600 leading-relaxed">
+                              {faq.answer}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

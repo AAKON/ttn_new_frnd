@@ -33,7 +33,7 @@ export default function AdminDashboard() {
     { label: "Total Users", value: data?.stats?.users || 0, icon: Users, color: "bg-blue-50 text-blue-600" },
     { label: "Total Companies", value: data?.stats?.companies || 0, icon: Building2, color: "bg-green-50 text-green-600" },
     { label: "Total Blogs", value: data?.stats?.blogs || 0, icon: FileText, color: "bg-purple-50 text-purple-600" },
-    { label: "Sourcing Proposals", value: data?.stats?.proposals || 0, icon: ShoppingBag, color: "bg-orange-50 text-orange-600" },
+    { label: "Sourcing Proposals", value: data?.stats?.proposals || 0, icon: ShoppingBag, color: "bg-red-50 text-red-600" },
   ];
 
   return (

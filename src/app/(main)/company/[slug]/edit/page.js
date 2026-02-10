@@ -1,12 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { apiRequest } from "@/utils/api";
 import { getMyCompanies } from "@/services/company";
 import { Trash2, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
 import PhoneCountryInput from "@/components/PhoneCountryInput";
+import dynamic from "next/dynamic";
+
+const MapComponent = dynamic(() => import("@/components/MapComponent"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full border border-gray-200 rounded-lg overflow-hidden bg-gray-100" style={{ height: "380px" }}>
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-gray-500">Loading map...</p>
+      </div>
+    </div>
+  ),
+});
 
 export default function EditCompanyPage() {
   const router = useRouter();
@@ -97,6 +109,12 @@ export default function EditCompanyPage() {
     phone_code: "US",
     whatsapp: "",
     whatsapp_code: "US",
+  });
+
+  const [faqs, setFaqs] = useState([]);
+  const [newFaq, setNewFaq] = useState({
+    question: "",
+    answer: "",
   });
 
   // Handle responsive slider items
@@ -206,6 +224,11 @@ export default function EditCompanyPage() {
           // Load decision makers
           if (company.decision_makers && Array.isArray(company.decision_makers)) {
             setDecisionMakers(company.decision_makers);
+          }
+
+          // Load FAQs
+          if (company.faqs && Array.isArray(company.faqs)) {
+            setFaqs(company.faqs);
           }
 
           setSelectedCategories(company.business_categories || company.businessCategories || []);
@@ -694,6 +717,53 @@ export default function EditCompanyPage() {
     } catch (error) {
       console.error("Failed to save decision makers", error);
       alert("Failed to save decision makers: " + (error?.data?.message || error?.message));
+    }
+  };
+
+  // FAQ Handlers
+  const saveFaq = async () => {
+    if (!newFaq.question.trim() || !newFaq.answer.trim()) {
+      alert("Please fill in both question and answer");
+      return;
+    }
+
+    try {
+      await apiRequest(
+        `my/company/${slug}/faq/store`,
+        {
+          method: "POST",
+          body: newFaq,
+        },
+        null,
+        session?.accessToken
+      );
+
+      setFaqs((prev) => [...prev, { ...newFaq, id: Math.random() }]);
+      setNewFaq({ question: "", answer: "" });
+      alert("FAQ added successfully!");
+    } catch (error) {
+      console.error("Failed to save FAQ", error);
+      alert("Failed to save FAQ: " + (error?.data?.message || error?.message));
+    }
+  };
+
+  const deleteFaq = async (faqId) => {
+    if (!confirm("Are you sure you want to delete this FAQ?")) return;
+
+    try {
+      await apiRequest(
+        `my/company/${slug}/faq/${faqId}/delete`,
+        {
+          method: "GET",
+        },
+        null,
+        session?.accessToken
+      );
+      setFaqs((prev) => prev.filter((f) => f.id !== faqId));
+      alert("FAQ deleted successfully!");
+    } catch (error) {
+      console.error("Failed to delete FAQ", error);
+      alert("Failed to delete FAQ");
     }
   };
 
@@ -2081,10 +2151,18 @@ export default function EditCompanyPage() {
                           </div>
                         </div>
 
-                        {/* Map Placeholder */}
-                        <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center border border-gray-300">
-                          <span className="text-gray-500">Map preview (coordinates: {contact.latitude || "N/A"}, {contact.longitude || "N/A"})</span>
-                        </div>
+                        {/* Map Component */}
+                        <MapComponent
+                          latitude={contact.latitude}
+                          longitude={contact.longitude}
+                          onLocationChange={(coords) => {
+                            setContact((prev) => ({
+                              ...prev,
+                              latitude: coords.latitude,
+                              longitude: coords.longitude,
+                            }));
+                          }}
+                        />
 
                         {/* Save Button */}
                         <button
@@ -2223,10 +2301,74 @@ export default function EditCompanyPage() {
                   </div>
                 )}
 
-                {/* FAQ Tab - placeholder */}
+                {/* FAQ Tab */}
                 {activeTab === "faq" && (
-                  <div className="text-center py-8 text-gray-600">
-                    FAQ section coming soon...
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-6">Frequently Asked Questions</h3>
+
+                    {/* Add FAQ Form */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Add New Question</h4>
+
+                      {/* Question Input */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Question *</label>
+                        <input
+                          type="text"
+                          value={newFaq.question}
+                          onChange={(e) => setNewFaq({ ...newFaq, question: e.target.value })}
+                          placeholder="Enter question"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      {/* Answer Input */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Answer *</label>
+                        <textarea
+                          value={newFaq.answer}
+                          onChange={(e) => setNewFaq({ ...newFaq, answer: e.target.value })}
+                          placeholder="Enter answer"
+                          rows="5"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 text-sm"
+                        />
+                      </div>
+
+                      {/* Save Button */}
+                      <button
+                        onClick={saveFaq}
+                        className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-lg transition-colors"
+                      >
+                        Done
+                      </button>
+                    </div>
+
+                    {/* Existing FAQs */}
+                    {faqs.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-4">Existing Questions</h4>
+                        <div className="space-y-4">
+                          {faqs.map((faq) => (
+                            <div key={faq.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <h5 className="text-sm font-semibold text-gray-900">{faq.question}</h5>
+                                <button
+                                  onClick={() => deleteFaq(faq.id)}
+                                  className="text-red-500 hover:text-red-700 transition-colors"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                              <p className="text-sm text-gray-600">{faq.answer}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {faqs.length === 0 && (
+                      <p className="text-gray-500 text-center py-8">No FAQs added yet</p>
+                    )}
                   </div>
                 )}
               </div>
