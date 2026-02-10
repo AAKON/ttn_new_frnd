@@ -297,23 +297,24 @@ export default function CompanyDetailClient({ company }) {
               <div className="bg-white rounded-lg p-4 sm:p-8">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-6">Products Showcase</h2>
 
-                {/* Product Tabs - Orange Pills */}
-                <div className="border border-gray-300 rounded-lg p-4 mb-8">
-                  <div className="flex gap-3 flex-wrap">
-                    {productCategories.map((category, index) => (
-                      <button
-                        key={category}
-                        onClick={() => setActiveProductTab(index)}
-                        className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm transition-colors ${
-                          activeProductTab === index
-                            ? "bg-brand-600 text-white"
-                            : "bg-brand-600 text-white hover:bg-brand-700"
-                        }`}
-                      >
-                        {category}
-                      </button>
-                    ))}
-                  </div>
+                {/* Product Tabs */}
+                <div className="flex gap-8 border-b border-gray-200 overflow-x-auto no-scrollbar mb-8">
+                  {productCategories.map((category, index) => (
+                    <button
+                      key={category}
+                      onClick={() => setActiveProductTab(index)}
+                      className={`bg-transparent border-none p-0 pb-4 text-base cursor-pointer transition-all relative whitespace-nowrap !bg-transparent !text-gray-900 ${
+                        activeProductTab === index
+                          ? "font-bold text-gray-900"
+                          : "font-normal text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      {category}
+                      {activeProductTab === index && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand-600"></div>
+                      )}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Products Carousel - Show 4 Products */}
@@ -405,7 +406,7 @@ export default function CompanyDetailClient({ company }) {
             {/* Tabs Section */}
             <div className="bg-white rounded-lg p-4 sm:p-8">
               <div className="mb-6">
-                <div className="flex gap-8 border-b border-gray-200">
+                <div className="flex gap-8 border-b border-gray-200 overflow-x-auto no-scrollbar">
                   {["profile", "clients", "certificates", "contacts", "faq"].map((tab) => (
                     <button
                       key={tab}

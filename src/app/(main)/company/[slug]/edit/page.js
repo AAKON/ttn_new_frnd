@@ -1180,9 +1180,9 @@ export default function EditCompanyPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Profile Image
                 </label>
-                <div className="flex gap-6 items-end">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-end">
                   {formData.imageUrl && !formData.image && (
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                       <img
                         src={formData.imageUrl}
                         alt="Company"
@@ -1194,7 +1194,7 @@ export default function EditCompanyPage() {
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
-                    className="px-4 py-2 border border-gray-300 rounded-lg cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg cursor-pointer"
                   />
                 </div>
               </div>
@@ -1203,7 +1203,7 @@ export default function EditCompanyPage() {
               <button
                 type="submit"
                 disabled={submittingBasicInfo}
-                className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-8 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 sm:px-8 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submittingBasicInfo ? "Saving..." : "Done"}
               </button>
@@ -1520,7 +1520,7 @@ export default function EditCompanyPage() {
 
             {/* Profile Section with Tabs */}
             <div className="bg-white rounded-lg">
-              <div className="border-b border-gray-300 px-8">
+              <div className="border-b border-gray-300 px-8 overflow-x-auto no-scrollbar">
                 <div className="flex gap-12">
                   {["profile", "clients", "certificates", "contacts", "faq"].map((tab) => (
                     <button
