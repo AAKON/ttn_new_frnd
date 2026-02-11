@@ -132,18 +132,24 @@ export async function getMyFavsCompanies() {
   const session = await getSession();
   const token = session?.accessToken;
   const endpoint = `my/favorite`;
-  const options = { method: "GET", next: { revalidate: 60 }, cache: "force-cache" };
+  const options = { method: "GET", cache: "no-store" };
   const result = await apiRequest(endpoint, options, null, token);
   return result?.data;
 }
 
-export async function delFavsCompanyFaq(slug, toast) {
+export async function toggleFavCompany(slug, toast) {
   const session = await getSession();
   const token = session?.accessToken;
   const endpoint = `my/favorite/${slug}`;
-  const options = { method: "GET", next: { revalidate: 60 }, cache: "force-cache" };
+  const options = { method: "GET", cache: "no-store" };
   const result = await apiRequest(endpoint, options, toast, token);
-  return result?.status && result?.code === 200;
+  // favorites controller returns { is_favorite: boolean }
+  return result?.status && result?.code === 200 ? result?.data : null;
+}
+
+export async function delFavsCompanyFaq(slug, toast) {
+  const res = await toggleFavCompany(slug, toast);
+  return res !== null;
 }
 
 export async function getMyFavsSourcingProposals() {

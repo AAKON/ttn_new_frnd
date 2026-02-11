@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { apiRequest } from "@/utils/api";
 import Link from "next/link";
 import InfiniteScroll from "react-infinite-scroll-component";
+import { getMyFavsCompanies, toggleFavCompany } from "@/services/company";
 
 export default function CompanyListingPage() {
   const [companies, setCompanies] = useState([]);
@@ -13,6 +14,7 @@ export default function CompanyListingPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
+  const [favoriteSlugs, setFavoriteSlugs] = useState([]);
   const [filterOptions, setFilterOptions] = useState({
     locations: [],
     businessCategories: [],
@@ -128,7 +130,14 @@ export default function CompanyListingPage() {
           cache: "no-store",
         });
 
-        const newCompanies = result?.data?.data || result?.data || [];
+        let newCompanies = result?.data?.data || result?.data || [];
+        // Apply favorite flags based on current favorite slugs
+        if (Array.isArray(newCompanies) && favoriteSlugs.length > 0) {
+          newCompanies = newCompanies.map((c) => ({
+            ...c,
+            is_favorite: favoriteSlugs.includes(c.slug),
+          }));
+        }
         const lastPage = result?.data?.pagination?.last_page || result?.data?.last_page || 1;
         const totalCount = result?.data?.pagination?.total || result?.data?.total || 0;
         const pp = result?.data?.pagination?.per_page || result?.data?.per_page || 30;
@@ -149,8 +158,28 @@ export default function CompanyListingPage() {
         setLoading(false);
       }
     },
-    [filters]
+    [filters, favoriteSlugs]
   );
+
+  // Load user's favorite companies once and sync flags
+  useEffect(() => {
+    (async () => {
+      try {
+        const favs = await getMyFavsCompanies();
+        const slugs = Array.isArray(favs) ? favs.map((f) => f.slug).filter(Boolean) : [];
+        setFavoriteSlugs(slugs);
+        if (slugs.length) {
+          setCompanies((prev) =>
+            prev.map((c) =>
+              slugs.includes(c.slug) ? { ...c, is_favorite: true } : c
+            )
+          );
+        }
+      } catch {
+        // ignore if not logged in or request fails
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -1119,7 +1148,26 @@ export default function CompanyListingPage() {
                               </div>
                               <button
                                 className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full border border-brand-200 hover:bg-brand-50 transition-colors !bg-white !p-0"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const res = await toggleFavCompany(company.slug);
+                                    setCompanies((prev) =>
+                                      prev.map((c) =>
+                                        c.id === company.id
+                                          ? { ...c, is_favorite: res?.is_favorite ?? !c.is_favorite }
+                                          : c
+                                      )
+                                    );
+                                  } catch {
+                                    // ignore errors, keep UI state
+                                  }
+                                }}
+                                title={
+                                  company.is_favorite
+                                    ? "Remove from favorites"
+                                    : "Add to favorites"
+                                }
                               >
                                 <svg
                                   className={`w-4 h-4 ${
@@ -1159,27 +1207,34 @@ export default function CompanyListingPage() {
                             )}
                             <div className="flex items-center justify-between mt-3">
                               {company.location && (
-                                <div className="flex items-center gap-1 text-sm text-gray-700">
-                                  <svg
-                                    className="w-4 h-4 text-gray-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                    />
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                                    />
-                                  </svg>
-                                  {company.location.name}
-                                </div>
+                            <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                              {company.location.flag_path && (
+                                <img
+                                  src={company.location.flag_path}
+                                  alt=""
+                                  className="w-4 h-3 object-cover rounded-sm"
+                                />
+                              )}
+                              <svg
+                                className="w-4 h-4 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              <span>{company.location.name}</span>
+                            </div>
                               )}
                               <div className="flex gap-3">
                                 <Link
@@ -1242,7 +1297,21 @@ export default function CompanyListingPage() {
                           </div>
                           <button
                             className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full border border-brand-200 hover:bg-brand-50 transition-colors !bg-white !p-0"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const res = await toggleFavCompany(company.slug);
+                                setCompanies((prev) =>
+                                  prev.map((c) =>
+                                    c.id === company.id
+                                      ? { ...c, is_favorite: res?.is_favorite ?? !c.is_favorite }
+                                      : c
+                                  )
+                                );
+                              } catch {
+                                // ignore errors
+                              }
+                            }}
                             title={
                               company.is_favorite
                                 ? "Remove from favorites"
@@ -1297,7 +1366,14 @@ export default function CompanyListingPage() {
                         <div className="mt-auto">
                           {/* Location */}
                           {company.location && (
-                            <div className="flex items-center justify-end gap-1 mb-4 text-sm text-gray-700">
+                            <div className="flex items-center justify-end gap-1.5 mb-4 text-sm text-gray-700">
+                              {company.location.flag_path && (
+                                <img
+                                  src={company.location.flag_path}
+                                  alt=""
+                                  className="w-4 h-3 object-cover rounded-sm"
+                                />
+                              )}
                               <svg
                                 className="w-4 h-4 text-gray-400"
                                 fill="none"
@@ -1316,7 +1392,7 @@ export default function CompanyListingPage() {
                                   d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                                 />
                               </svg>
-                              {company.location.name}
+                              <span>{company.location.name}</span>
                             </div>
                           )}
 

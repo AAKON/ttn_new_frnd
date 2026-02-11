@@ -24,10 +24,21 @@ export default function BusinessCategoriesPage() {
   const fetchCategories = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getBusinessCategories();
-      setCategories(data || []);
+      let data = await getBusinessCategories();
+
+      // Normalize response into a flat array
+      if (Array.isArray(data)) {
+        // already an array
+      } else if (data && Array.isArray(data.data)) {
+        data = data.data;
+      } else {
+        data = [];
+      }
+
+      setCategories(data);
     } catch (e) {
       console.error(e);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

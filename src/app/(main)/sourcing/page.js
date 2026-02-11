@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiRequest } from "@/utils/api";
 import { getSourcingFilterOptions } from "@/services/sourcing";
+import { getMyFavsSourcingProposals, toggleFavsSourcingProposal } from "@/services/company";
 import Link from "next/link";
 import InfiniteScroll from "react-infinite-scroll-component";
 
@@ -127,6 +128,7 @@ export default function SourcingListingPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
+  const [favoriteIds, setFavoriteIds] = useState([]);
   const [filterOptions, setFilterOptions] = useState({
     categories: [],
     locations: [],
@@ -211,7 +213,15 @@ export default function SourcingListingPage() {
         });
 
         const data = result?.data;
-        const newProposals = data?.data || [];
+        let newProposals = data?.data || [];
+
+        // apply favorite flags based on current favorite IDs
+        if (Array.isArray(newProposals) && favoriteIds.length > 0) {
+          newProposals = newProposals.map((p) => ({
+            ...p,
+            is_favorited: favoriteIds.includes(p.id),
+          }));
+        }
         const pagination = data?.pagination || {};
         const lastPage = pagination.last_page || 1;
         const totalCount = pagination.total || 0;
@@ -233,8 +243,28 @@ export default function SourcingListingPage() {
         setLoading(false);
       }
     },
-    [filters]
+    [filters, favoriteIds]
   );
+
+  // Load user's favorite sourcing proposals once and sync flags
+  useEffect(() => {
+    (async () => {
+      try {
+        const favs = await getMyFavsSourcingProposals();
+        const ids = Array.isArray(favs) ? favs.map((f) => f.id) : [];
+        setFavoriteIds(ids);
+        if (ids.length) {
+          setProposals((prev) =>
+            prev.map((p) =>
+              ids.includes(p.id) ? { ...p, is_favorited: true } : p
+            )
+          );
+        }
+      } catch {
+        // ignore if not logged in or request fails
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -757,7 +787,27 @@ export default function SourcingListingPage() {
                           ) : <div />}
                           <button
                             className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full border border-brand-200 hover:bg-brand-50 transition-colors !bg-white !p-0"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const ok = await toggleFavsSourcingProposal(proposal.id);
+                                if (!ok) return;
+                                setFavoriteIds((prev) =>
+                                  proposal.is_favorited
+                                    ? prev.filter((id) => id !== proposal.id)
+                                    : Array.from(new Set([...prev, proposal.id]))
+                                );
+                                setProposals((prev) =>
+                                  prev.map((p) =>
+                                    p.id === proposal.id
+                                      ? { ...p, is_favorited: !p.is_favorited }
+                                      : p
+                                  )
+                                );
+                              } catch {
+                                // ignore errors
+                              }
+                            }}
                             title={proposal.is_favorited ? "Remove from favorites" : "Add to favorites"}
                           >
                             <svg
