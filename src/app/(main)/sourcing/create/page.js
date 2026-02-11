@@ -28,6 +28,7 @@ export default function CreateSourcingProposalPage() {
     email: "",
     phone: "",
     whatsapp: "",
+    address: "",
     quantity: "",
     unit: "yard",
     price: "",
@@ -304,6 +305,21 @@ export default function CreateSourcingProposalPage() {
                   locations={filterOptions?.locations || []}
                   label="WhatsApp"
                   placeholder="Ex: 123654789"
+                />
+              </div>
+
+              {/* Address */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Address
+                </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Enter your address"
+                  rows={2}
+                  className="input_style"
                 />
               </div>
             </div>
