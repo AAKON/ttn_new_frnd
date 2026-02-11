@@ -1,26 +1,28 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  createSourcingProposal,
-  getSourcingFilterOptions,
-} from "@/services/sourcing";
+import { getSourcingDetails, getSourcingFilterOptions } from "@/services/sourcing";
+import { updateSourcingProposal, deleteSourcingImage } from "@/services/sourcing-update";
 import { useDropzone } from "react-dropzone";
 import { X } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import PhoneCountryInput from "@/components/PhoneCountryInput";
 
-export default function CreateSourcingProposalPage() {
+export default function EditSourcingProposalPage() {
+  const { id } = useParams();
   const { data: session } = useSession();
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [step, setStep] = useState(1);
   const [filterOptions, setFilterOptions] = useState(null);
-  const [images, setImages] = useState([]);
+  const [newImages, setNewImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [removedImageIds, setRemovedImageIds] = useState([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -42,7 +44,7 @@ export default function CreateSourcingProposalPage() {
 
   const editor = useEditor({
     extensions: [StarterKit],
-    content: formData.description,
+    content: "",
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       setFormData((prev) => ({ ...prev, description: editor.getHTML() }));
@@ -54,12 +56,58 @@ export default function CreateSourcingProposalPage() {
     },
   });
 
+  // Fetch filter options and proposal data
   useEffect(() => {
     getSourcingFilterOptions().then((res) => setFilterOptions(res?.data));
   }, []);
 
+  useEffect(() => {
+    if (!id || !session?.accessToken) return;
+    const fetchData = async () => {
+      try {
+        const result = await getSourcingDetails(id, session.accessToken);
+        const data = result?.data?.data || result?.data;
+        if (!data) {
+          toast({ title: "Proposal not found", variant: "destructive" });
+          router.push("/myaccount/sourcing-proposals");
+          return;
+        }
+
+        setFormData({
+          title: data.title || "",
+          description: data.description || "",
+          company_name: data.company_name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          whatsapp: data.whatsapp || "",
+          quantity: data.quantity ? String(data.quantity) : "",
+          unit: data.unit || "yard",
+          price: data.price ? String(data.price) : "",
+          currency: data.currency || "USD",
+          payment_method: data.payment_method || "bank_transfer",
+          delivery_info: data.delivery_info || "",
+          product_category_ids: data.product_categories
+            ? data.product_categories.map((c) => c.id)
+            : [],
+          location_id: data.location ? String(data.location.id) : "",
+        });
+
+        if (editor && data.description) {
+          editor.commands.setContent(data.description);
+        }
+
+        setExistingImages(data.images_urls || []);
+      } catch {
+        toast({ title: "Failed to load proposal", variant: "destructive" });
+      } finally {
+        setFetching(false);
+      }
+    };
+    fetchData();
+  }, [id, session?.accessToken, editor]);
+
   const onDrop = useCallback((files) => {
-    setImages((prev) => [...prev, ...files].slice(0, 5));
+    setNewImages((prev) => [...prev, ...files].slice(0, 5));
   }, []);
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -72,11 +120,23 @@ export default function CreateSourcingProposalPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleNext = () => {
-    if (!formData.location_id || formData.product_category_ids.length === 0 || !formData.company_name) {
-      toast({ title: "Please fill Category, Country and Company Name", variant: "destructive" });
+    if (
+      !formData.location_id ||
+      formData.product_category_ids.length === 0 ||
+      !formData.company_name
+    ) {
+      toast({
+        title: "Please fill Category, Country and Company Name",
+        variant: "destructive",
+      });
       return;
     }
     setStep(2);
+  };
+
+  const handleRemoveExistingImage = (imageId) => {
+    setRemovedImageIds((prev) => [...prev, imageId]);
+    setExistingImages((prev) => prev.filter((img) => img.id !== imageId));
   };
 
   const handleSubmit = async () => {
@@ -86,34 +146,52 @@ export default function CreateSourcingProposalPage() {
     }
     setLoading(true);
     try {
+      // Delete removed images first
+      for (const imageId of removedImageIds) {
+        await deleteSourcingImage(id, imageId, null, session?.accessToken);
+      }
+
       const fd = new FormData();
       Object.entries(formData).forEach(([k, v]) => {
         if (k === "product_category_ids") {
-          v.forEach((id) => fd.append("product_category_ids[]", id));
+          v.forEach((catId) => fd.append("product_category_ids[]", catId));
         } else {
           fd.append(k, v);
         }
       });
-      images.forEach((img) => fd.append("images", img));
-      const result = await createSourcingProposal(
+      newImages.forEach((img) => fd.append("images", img));
+
+      const result = await updateSourcingProposal(
+        id,
         fd,
         toast,
         session?.accessToken
       );
-      if (result?.status) router.push("/myaccount/sourcing-proposals");
+      if (result?.status) {
+        toast({ title: "Proposal updated successfully" });
+        router.push("/myaccount/sourcing-proposals");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCategoryToggle = (id) => {
+  const handleCategoryToggle = (catId) => {
     setFormData((prev) => ({
       ...prev,
-      product_category_ids: prev.product_category_ids.includes(id)
-        ? prev.product_category_ids.filter((c) => c !== id)
-        : [...prev.product_category_ids, id],
+      product_category_ids: prev.product_category_ids.includes(catId)
+        ? prev.product_category_ids.filter((c) => c !== catId)
+        : [...prev.product_category_ids, catId],
     }));
   };
+
+  if (fetching) {
+    return (
+      <div className="container mx-auto py-16 text-center">
+        <p className="text-gray-500">Loading proposal...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 max-w-lg px-4">
@@ -121,7 +199,7 @@ export default function CreateSourcingProposalPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="!text-lg !font-bold !text-gray-900">
-            Sourcing Proposal
+            Edit Sourcing Proposal
           </h2>
           <button
             onClick={() => router.back()}
@@ -515,8 +593,41 @@ export default function CreateSourcingProposalPage() {
                 />
               </div>
 
-              {/* Image Upload */}
+              {/* Existing Images */}
+              {existingImages.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Current Images
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {existingImages.map((img) => (
+                      <div
+                        key={img.id}
+                        className="relative w-20 h-20 rounded-lg overflow-hidden border"
+                      >
+                        <img
+                          src={img.url || img.original_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingImage(img.id)}
+                          className="absolute top-0.5 right-0.5 !bg-white !rounded-full !p-0.5"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* New Image Upload */}
               <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Add New Images
+                </label>
                 <div
                   {...getRootProps()}
                   className="border-2 border-dashed border-brand-200 bg-brand-50/30 rounded-lg p-8 text-center cursor-pointer hover:border-brand-400 transition-colors"
@@ -543,9 +654,9 @@ export default function CreateSourcingProposalPage() {
                     </p>
                   </div>
                 </div>
-                {images.length > 0 && (
+                {newImages.length > 0 && (
                   <div className="flex gap-2 mt-3 flex-wrap">
-                    {images.map((f, i) => (
+                    {newImages.map((f, i) => (
                       <div
                         key={i}
                         className="relative w-20 h-20 rounded-lg overflow-hidden border"
@@ -558,7 +669,7 @@ export default function CreateSourcingProposalPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            setImages(images.filter((_, j) => j !== i))
+                            setNewImages(newImages.filter((_, j) => j !== i))
                           }
                           className="absolute top-0.5 right-0.5 !bg-white !rounded-full !p-0.5"
                         >
@@ -619,7 +730,7 @@ export default function CreateSourcingProposalPage() {
                   disabled={loading}
                   className="flex-1 !bg-brand-500 hover:!bg-brand-600 !text-white !py-3 !rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading ? "Submitting..." : "Submit"}
+                  {loading ? "Updating..." : "Update"}
                   {!loading && (
                     <svg
                       className="w-4 h-4"
@@ -631,7 +742,7 @@ export default function CreateSourcingProposalPage() {
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                        d="M4.5 12.75l6 6 9-13.5"
                       />
                     </svg>
                   )}

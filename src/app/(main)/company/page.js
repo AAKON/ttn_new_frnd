@@ -901,6 +901,90 @@ export default function CompanyListingPage() {
 
           {/* Company Cards */}
           <div className="flex-1">
+            {/* Active Filter Pills */}
+            {(filters.keyword || filters.locationId || filters.businessCategoryIds.length > 0 || filters.businessTypeIds.length > 0 || filters.certificateIds.length > 0 || filters.manpower.length > 0) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {filters.keyword && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                    <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {filters.keyword}
+                    <button onClick={() => { handleFilterChange("keyword", ""); setHeroKeyword(""); }} className="!bg-transparent !p-0 !ml-0.5 hover:!text-gray-900 !text-gray-400">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </span>
+                )}
+                {filters.locationId && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                    <svg className="w-3.5 h-3.5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 014 10 14.5 14.5 0 01-4 10 14.5 14.5 0 01-4-10 14.5 14.5 0 014-10" /><path d="M2 12h20" />
+                    </svg>
+                    {filterOptions.locations.find((l) => l.id === filters.locationId)?.name}
+                    <button onClick={() => { handleFilterChange("locationId", null); setHeroLocation(""); }} className="!bg-transparent !p-0 !ml-0.5 hover:!text-gray-900 !text-gray-400">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </span>
+                )}
+                {filters.businessCategoryIds.map((id) => {
+                  const cat = filterOptions.businessCategories.find((c) => c.id === id);
+                  return cat ? (
+                    <span key={`cat-${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+                      </svg>
+                      {cat.name}
+                      <button onClick={() => toggleArrayFilter("businessCategoryIds", id)} className="!bg-transparent !p-0 !ml-0.5 hover:!text-gray-900 !text-gray-400">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+                {filters.businessTypeIds.map((id) => {
+                  const type = filterOptions.businessTypes.find((t) => t.id === id);
+                  return type ? (
+                    <span key={`type-${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      {type.name}
+                      <button onClick={() => toggleArrayFilter("businessTypeIds", id)} className="!bg-transparent !p-0 !ml-0.5 hover:!text-gray-900 !text-gray-400">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+                {filters.certificateIds.map((id) => {
+                  const cert = filterOptions.certificates.find((c) => c.id === id);
+                  return cert ? (
+                    <span key={`cert-${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      {cert.name}
+                      <button onClick={() => toggleArrayFilter("certificateIds", id)} className="!bg-transparent !p-0 !ml-0.5 hover:!text-gray-900 !text-gray-400">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+                {filters.manpower.map((id) => {
+                  const range = filterOptions.manpowerRanges.find((r) => (r.id || r) === id);
+                  return range ? (
+                    <span key={`size-${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-sm text-gray-700">
+                      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {range.name || range}
+                      <button onClick={() => toggleArrayFilter("manpower", id)} className="!bg-transparent !p-0 !ml-0.5 hover:!text-gray-900 !text-gray-400">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
+
             {/* Results Header */}
             <div className="flex items-center justify-between mb-6 bg-gray-800 lg:bg-transparent rounded-lg lg:rounded-none px-4 py-3 lg:p-0">
               <p className="text-sm lg:text-lg font-semibold text-white lg:text-gray-900">

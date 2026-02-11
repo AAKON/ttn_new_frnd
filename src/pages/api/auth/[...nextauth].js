@@ -47,6 +47,7 @@ export const authOptions = {
               atob(user?.data?.access_token.split(".")[1])
             );
             return {
+              id: tokenPayload.id,
               accessToken: user?.data?.access_token,
               exp: tokenPayload.exp,
               name: user?.data?.name,
@@ -85,6 +86,10 @@ export const authOptions = {
             token.accessToken = apiResponse.data.access_token;
             token.email = apiResponse.data.email;
             token.roles = apiResponse.data.roles || [];
+            try {
+              const payload = JSON.parse(atob(apiResponse.data.access_token.split(".")[1]));
+              token.userId = payload.id;
+            } catch {}
           } else {
             throw new Error(apiResponse.message || "Google login failed.");
           }
@@ -103,11 +108,13 @@ export const authOptions = {
         token.email = user.email;
         token.picture = user.profile_image;
         token.roles = user.roles || [];
+        token.userId = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       session.user = {
+        id: token.userId,
         full_name: token.name,
         user_name: token.user_name,
         email: token.email,

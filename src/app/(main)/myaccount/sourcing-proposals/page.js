@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getMySourcingProposals, delSourcingProposal } from "@/services/company";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 
 export default function MySourcingProposalsPage() {
   const [proposals, setProposals] = useState([]);
@@ -40,7 +40,10 @@ export default function MySourcingProposalsPage() {
                 <Link href={`/sourcing/${p.id}`} className="font-semibold text-gray-900 hover:text-brand-600">{p.title}</Link>
                 <p className="text-sm mt-1">{p.company_name} &middot; <span className="capitalize">{p.status}</span></p>
               </div>
-              <button onClick={() => handleDelete(p.id)} className="p-1.5 bg-transparent text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+              <div className="flex items-center gap-1">
+                <Link href={`/sourcing/${p.id}/edit`} className="!p-1.5 !bg-transparent !text-gray-500 hover:!bg-gray-100 !rounded"><Pencil size={16} /></Link>
+                <button onClick={() => handleDelete(p.id)} className="!p-1.5 !bg-transparent !text-red-500 hover:!bg-red-50 !rounded"><Trash2 size={16} /></button>
+              </div>
             </div>
           ))}
         </div>

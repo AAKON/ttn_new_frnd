@@ -21,29 +21,12 @@ export async function submitComment(id, comment, toast) {
 
 export async function getSourcingFilterOptions() {
   try {
-    // Fetch categories and locations in parallel from dedicated endpoints
-    const [categoriesRes, locationsRes] = await Promise.all([
-      apiRequest(`business-categories`, { method: "GET" }),
-      apiRequest(`locations`, { method: "GET" }),
-    ]);
-
-    // Extract data from responses
-    let categories = categoriesRes?.data || [];
-    if (categories && typeof categories === 'object' && !Array.isArray(categories) && categories.data) {
-      categories = categories.data;
-    }
-    categories = Array.isArray(categories) ? categories : [];
-
-    let locations = locationsRes?.data || [];
-    if (locations && typeof locations === 'object' && !Array.isArray(locations) && locations.data) {
-      locations = locations.data;
-    }
-    locations = Array.isArray(locations) ? locations : [];
-
+    const res = await apiRequest(`filter-options/sourcing-proposals`, { method: "GET" });
+    const data = res?.data?.data || res?.data || {};
     return {
       data: {
-        categories,
-        locations,
+        categories: Array.isArray(data.product_categories) ? data.product_categories : [],
+        locations: Array.isArray(data.locations) ? data.locations : [],
       }
     };
   } catch (error) {
