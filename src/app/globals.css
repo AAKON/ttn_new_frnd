@@ -341,6 +341,39 @@ html body[data-scroll-locked] {
 	min-height: 150px;
 }
 
+/* Highlight whole columns section when cursor/selection is inside a column */
+.ttn-columns.ttn-columns-selected {
+	outline: 2px solid hsl(var(--primary));
+	outline-offset: 2px;
+	border-radius: 0.375rem;
+}
+
+/* Per-column remove button (shown when section is selected) */
+.ttn-column-delete-btn {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	z-index: 4;
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	font-size: 16px;
+	line-height: 1;
+	color: #6b7280;
+	background: #f3f4f6;
+	border: 1px solid #e5e7eb;
+	border-radius: 0.25rem;
+	cursor: pointer;
+}
+.ttn-column-delete-btn:hover {
+	color: #dc2626;
+	background: #fee2e2;
+	border-color: #fecaca;
+}
+
 .ttn-columns > * {
 	position: relative;
 	padding: 0.25rem;
@@ -349,6 +382,7 @@ html body[data-scroll-locked] {
 	background-color: #ffffff;
 	overflow: hidden;
 	height: 100%;
+	min-width: 0; /* allow grid cells to shrink so text wraps instead of cropping */
 }
 
 .ttn-columns img {
@@ -358,14 +392,38 @@ html body[data-scroll-locked] {
 	object-fit: cover;
 }
 
+/* Mobile: stack columns in one column */
+@media (max-width: 767px) {
+	.ttn-columns[data-widths] {
+		grid-template-columns: 1fr !important;
+	}
+}
+
 @media (min-width: 768px) {
-	.ttn-columns {
+	.ttn-columns:not([data-widths]) {
 		grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 	}
 }
 
 @media (min-width: 1024px) {
-	.ttn-columns {
+	.ttn-columns:not([data-widths]) {
 		grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 	}
+}
+
+/* Blog details view: let columns grow with content so text is not cropped */
+.blog-details-container .ttn-columns {
+	height: auto !important;
+	overflow: visible;
+	min-height: 0;
+}
+.blog-details-container .ttn-columns > * {
+	height: auto !important;
+	overflow: visible;
+	min-width: 0;
+	border: none;
+}
+.blog-details-container .ttn-columns img {
+	height: auto;
+	max-height: 100%;
 }

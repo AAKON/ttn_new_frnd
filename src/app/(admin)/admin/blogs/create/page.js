@@ -1,16 +1,25 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createBlog, getBlogTypes } from "@/services/admin";
 import { useToast } from "@/hooks/use-toast";
 import FormWrapper from "@/components/admin/form-wrapper";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import TipTapImage from "@tiptap/extension-image";
-import { Node, Mark } from "@tiptap/core";
+import { Node, Mark, Extension } from "@tiptap/core";
+import { Plugin } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 const TextColor = Mark.create({
   name: "textColor",
@@ -44,6 +53,86 @@ const TextColor = Mark.create({
   },
 });
 
+const FontFamily = Mark.create({
+  name: "fontFamily",
+  inclusive: true,
+  group: "inline",
+  attrs: {
+    fontFamily: {
+      default: null,
+    },
+  },
+  parseHTML() {
+    return [
+      {
+        style: "font-family",
+      },
+    ];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["span", HTMLAttributes, 0];
+  },
+  addAttributes() {
+    return {
+      fontFamily: {
+        default: null,
+        parseHTML: (element) => element.style.fontFamily || null,
+        renderHTML: (attrs) =>
+          attrs.fontFamily ? { style: `font-family: ${attrs.fontFamily}` } : {},
+      },
+    };
+  },
+});
+
+/** Normalize ratio string "1,2,1" to stored ratios "1,2,1". Returns null if invalid. */
+function ratioToWidths(ratioStr, columnCount) {
+  if (!ratioStr || typeof ratioStr !== "string") return null;
+  const parts = ratioStr.split(/[\s,]+/).map((s) => parseFloat(s.trim()));
+  if (parts.length !== columnCount || parts.some((n) => Number.isNaN(n) || n <= 0)) return null;
+  return parts.join(",");
+}
+
+/** Build grid-template-columns from widths attribute (ratios or legacy %), or equal columns. */
+function columnsGridStyle(widthsStr, cols) {
+  if (widthsStr && typeof widthsStr === "string") {
+    const parts = widthsStr.split(",").map((s) => parseFloat(s.trim()));
+    if (parts.length === cols && parts.every((n) => !Number.isNaN(n) && n > 0)) {
+      const sum = parts.reduce((a, b) => a + b, 0);
+      // Legacy support: if it looks like percentages, convert to ratios.
+      const ratios =
+        sum > 95 && sum < 105
+          ? parts.map((p) => Math.round((p / Math.min(...parts)) * 100) / 100)
+          : parts;
+      return ratios.map((r) => `${r}fr`).join(" ");
+    }
+  }
+  return `repeat(${cols}, minmax(0, 1fr))`;
+}
+
+/** Get attrs of the columns node containing the current selection, or null. */
+function getSelectedColumnsAttrs(editor) {
+  if (!editor?.state?.selection?.$from) return null;
+  const $from = editor.state.selection.$from;
+  for (let d = $from.depth; d > 0; d--) {
+    const node = $from.node(d);
+    if (node.type.name === "columns") return { ...node.attrs };
+  }
+  return null;
+}
+
+/** Convert stored widths (ratios or legacy %) to ratio string "1,2,1" for display. */
+function widthsToRatio(widthsStr) {
+  if (!widthsStr || typeof widthsStr !== "string") return "";
+  const parts = widthsStr.split(",").map((s) => parseFloat(s.trim()));
+  if (parts.some((n) => Number.isNaN(n)) || parts.length === 0) return "";
+  const sum = parts.reduce((a, b) => a + b, 0);
+  const normalized = sum > 95 && sum < 105 ? parts.map((p) => p) : parts.map((p) => p);
+  const min = Math.min(...normalized);
+  if (min === 0) return widthsStr;
+  const scale = normalized.map((p) => p / min);
+  return scale.map((s) => Math.round(s * 100) / 100).join(",");
+}
+
 const Columns = Node.create({
   name: "columns",
   group: "block",
@@ -75,27 +164,143 @@ const Columns = Node.create({
           "data-height": attributes.height || 250,
         }),
       },
+      widths: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-widths") || null,
+        renderHTML: (attributes) =>
+          attributes.widths ? { "data-widths": attributes.widths } : {},
+      },
     };
   },
   parseHTML() {
-    return [
-      {
-        tag: 'div[data-columns]',
+    return [{ tag: "div[data-columns]" }];
+  },
+  addCommands() {
+    const deleteColumnAt = (columnIndex, { state, dispatch }) => {
+      const { $from } = state.selection;
+      let columnsDepth = null;
+      for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type.name === "columns") {
+          columnsDepth = d;
+          break;
+        }
+      }
+      if (columnsDepth == null || columnIndex < 0) return false;
+      const columnsNode = $from.node(columnsDepth);
+      if (columnIndex >= columnsNode.childCount) return false;
+      const columnsPos = $from.before(columnsDepth);
+      let startPos = columnsPos + 1;
+      for (let i = 0; i < columnIndex; i++) {
+        startPos += columnsNode.child(i).nodeSize;
+      }
+      const endPos = startPos + columnsNode.child(columnIndex).nodeSize;
+      const tr = state.tr;
+      if (columnsNode.childCount <= 1) {
+        const child = columnsNode.child(0);
+        tr.replaceWith(columnsPos, columnsPos + columnsNode.nodeSize, child.content);
+      } else {
+        tr.delete(startPos, endPos);
+        const newCount = columnsNode.childCount - 1;
+        const widths = (columnsNode.attrs.widths || "").split(",").map((s) => s.trim()).filter(Boolean);
+        const newWidths =
+          widths.length === columnsNode.childCount
+            ? widths.filter((_, i) => i !== columnIndex).join(",")
+            : null;
+        tr.setNodeMarkup(columnsPos, null, {
+          ...columnsNode.attrs,
+          columns: newCount,
+          ...(newWidths != null && { widths: newWidths }),
+        });
+      }
+      if (dispatch) dispatch(tr);
+      return true;
+    };
+    return {
+      deleteCurrentColumn: () => (props) => {
+        const { $from } = props.state.selection;
+        let columnsDepth = null;
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === "columns") {
+            columnsDepth = d;
+            break;
+          }
+        }
+        if (columnsDepth == null) return false;
+        const columnIndex = $from.index(columnsDepth);
+        return deleteColumnAt(columnIndex, props);
       },
-    ];
+      deleteColumnByIndex: (index) => (props) => deleteColumnAt(index, props),
+      deleteSection:
+        () =>
+        ({ state, dispatch }) => {
+          const { $from } = state.selection;
+          let columnsDepth = null;
+          for (let d = $from.depth; d > 0; d--) {
+            if ($from.node(d).type.name === "columns") {
+              columnsDepth = d;
+              break;
+            }
+          }
+          if (columnsDepth == null) return false;
+          const columnsNode = $from.node(columnsDepth);
+          const columnsPos = $from.before(columnsDepth);
+          const tr = state.tr.delete(columnsPos, columnsPos + columnsNode.nodeSize);
+          if (dispatch) dispatch(tr);
+          return true;
+        },
+    };
   },
   renderHTML({ node }) {
     const cols = node.attrs.columns || 2;
     const height = node.attrs.height || 250;
+    const gridCols = columnsGridStyle(node.attrs.widths, cols);
+    const style = `margin:16px 0;gap:8px;align-items:stretch;height:${height}px;display:grid;grid-template-columns:${gridCols};`;
+    const attrs = {
+      "data-columns": String(cols),
+      class: "ttn-columns",
+      "data-height": String(height),
+      style,
+    };
+    if (node.attrs.widths) attrs["data-widths"] = node.attrs.widths;
+    return ["div", attrs, 0];
+  },
+});
+
+/** When selection is inside a columns node, highlight the whole section. */
+const ColumnsHighlight = Extension.create({
+  name: "columnsHighlight",
+  addProseMirrorPlugins() {
     return [
-      "div",
-      {
-        "data-columns": String(cols),
-        class: "ttn-columns",
-        "data-height": String(height),
-        style: `margin:16px 0;gap:8px;align-items:stretch;height:${height}px;`,
-      },
-      0,
+      new Plugin({
+        state: {
+          init() {
+            return DecorationSet.empty;
+          },
+          apply(tr, value, oldState, newState) {
+            if (!tr.selectionSet && !tr.docChanged) {
+              return value.map(tr.mapping);
+            }
+            const { $from } = newState.selection;
+            for (let d = $from.depth; d > 0; d--) {
+              const node = $from.node(d);
+              if (node.type.name === "columns") {
+                const pos = $from.before(d);
+                return DecorationSet.create(tr.doc, [
+                  Decoration.node(pos, pos + node.nodeSize, {
+                    class: "ttn-columns-selected",
+                  }),
+                ]);
+              }
+            }
+            return DecorationSet.empty;
+          },
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state) ?? DecorationSet.empty;
+          },
+        },
+      }),
     ];
   },
 });
@@ -117,6 +322,51 @@ export default function CreateBlogPage() {
   const [pendingImageColumns, setPendingImageColumns] = useState(1);
   const bodyImageInputRef = useRef(null);
   const [sectionHeight, setSectionHeight] = useState("250");
+  const [colorPresets, setColorPresets] = useState([
+    "#1d4ed8",
+    "#ef4444",
+    "#a3e635",
+  ]);
+  const [colorSelectedIndex, setColorSelectedIndex] = useState(0);
+  const [fontSelectedIndex, setFontSelectedIndex] = useState(0);
+  const fontOptions = [
+    { label: "Default", value: null, preview: "Aa" },
+    {
+      label: "Sans Serif",
+      value:
+        "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
+      preview: "Aa",
+    },
+    {
+      label: "Serif",
+      value:
+        "Georgia, 'Times New Roman', 'Palatino Linotype', 'EB Garamond', serif",
+      preview: "Aa",
+    },
+    {
+      label: "Monospace",
+      value:
+        "'SFMono-Regular', Menlo, Monaco, Consolas, 'Courier New', 'Comic Sans MS', monospace",
+      preview: "Aa",
+    },
+    // Basic system fonts
+    { label: "Arial", value: "Arial, 'Helvetica Neue', sans-serif", preview: "Aa" },
+    { label: "Calibri", value: "Calibri, 'Segoe UI', sans-serif", preview: "Aa" },
+    { label: "Comic Sans MS", value: "'Comic Sans MS', cursive, sans-serif", preview: "Aa" },
+    { label: "Courier New", value: "'Courier New', monospace", preview: "Aa" },
+    { label: "Verdana", value: "Verdana, Geneva, sans-serif", preview: "Aa" },
+    // Display / Google-style fonts
+    { label: "Amatic SC", value: "'Amatic SC', cursive", preview: "Aa" },
+    { label: "Caveat", value: "'Caveat', cursive", preview: "Aa" },
+    { label: "Comfortaa", value: "'Comfortaa', cursive", preview: "Aa" },
+    { label: "EB Garamond", value: "'EB Garamond', 'Times New Roman', serif", preview: "Aa" },
+    { label: "Georgia", value: "Georgia, 'Times New Roman', serif", preview: "Aa" },
+    { label: "Impact", value: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif", preview: "Aa" },
+    { label: "Lexend", value: "'Lexend', system-ui, sans-serif", preview: "Aa" },
+  ];
+  const [columnDeleteRects, setColumnDeleteRects] = useState(null);
+  const [measureTick, setMeasureTick] = useState(0);
+  const editorWrapRef = useRef(null);
 
   const fetchBlogTypes = useCallback(async () => {
     try {
@@ -130,6 +380,8 @@ export default function CreateBlogPage() {
   useEffect(() => {
     fetchBlogTypes();
   }, [fetchBlogTypes]);
+
+  const editorRef = useRef(null);
 
   const editor = useEditor({
     extensions: [
@@ -147,6 +399,7 @@ export default function CreateBlogPage() {
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
+      FontFamily,
       TipTapImage.extend({
         addAttributes() {
           return {
@@ -170,6 +423,7 @@ export default function CreateBlogPage() {
         allowBase64: true,
       }),
       Columns,
+      ColumnsHighlight,
     ],
     content: form.body,
     immediatelyRender: false,
@@ -182,6 +436,56 @@ export default function CreateBlogPage() {
       },
     },
   });
+
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const unsub = editor.on("selectionUpdate", () => setMeasureTick((t) => t + 1));
+    return () => unsub?.destroy?.();
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor || !editorWrapRef.current) {
+      setColumnDeleteRects(null);
+      return;
+    }
+    const inColumns = getSelectedColumnsAttrs(editor);
+    if (!inColumns) {
+      setColumnDeleteRects(null);
+      return;
+    }
+    const measure = () => {
+      const wrap = editorWrapRef.current;
+      if (!wrap) return;
+      const sel = wrap.querySelector(".ttn-columns-selected");
+      if (!sel || !sel.children.length) {
+        setColumnDeleteRects(null);
+        return;
+      }
+      const rects = [];
+      for (let i = 0; i < sel.children.length; i++) {
+        const r = sel.children[i].getBoundingClientRect();
+        rects.push({
+          index: i,
+          top: r.top + 4,
+          left: r.right - 28,
+        });
+      }
+      setColumnDeleteRects(rects);
+    };
+    const raf = requestAnimationFrame(measure);
+    const onScrollOrResize = () => requestAnimationFrame(measure);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [editor, measureTick]);
 
   const handleTitleChange = (e) => {
     const title = e.target.value;
@@ -388,17 +692,16 @@ export default function CreateBlogPage() {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Body</label>
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div ref={editorWrapRef} className="border border-gray-200 rounded-lg overflow-hidden relative">
           {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-            {/* Basic styles */}
+          <div className="flex flex-wrap items-center gap-0.5 px-3 py-2 border-b border-gray-200 bg-white">
             <button
               type="button"
               onClick={() => editor?.chain().focus().toggleBold().run()}
-              className={`px-1.5 py-1 rounded text-xs font-bold ${
+              className={`min-w-[28px] px-1.5 py-1.5 rounded-md text-xs font-bold ${
                 editor?.isActive("bold")
                   ? "bg-gray-200 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               B
@@ -406,10 +709,10 @@ export default function CreateBlogPage() {
             <button
               type="button"
               onClick={() => editor?.chain().focus().toggleItalic().run()}
-              className={`px-1.5 py-1 rounded text-xs italic ${
+              className={`min-w-[28px] px-1.5 py-1.5 rounded-md text-xs italic ${
                 editor?.isActive("italic")
                   ? "bg-gray-200 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               I
@@ -417,17 +720,16 @@ export default function CreateBlogPage() {
             <button
               type="button"
               onClick={() => editor?.chain().focus().toggleUnderline().run()}
-              className={`px-1.5 py-1 rounded text-xs underline ${
+              className={`min-w-[28px] px-1.5 py-1.5 rounded-md text-xs underline ${
                 editor?.isActive("underline")
                   ? "bg-gray-200 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               U
             </button>
 
-            {/* Headings (font size) */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
             {[1, 2, 3].map((level) => (
               <button
                 key={level}
@@ -435,129 +737,331 @@ export default function CreateBlogPage() {
                 onClick={() =>
                   editor?.chain().focus().toggleHeading({ level }).run()
                 }
-                className={`px-1.5 py-1 rounded text-xs ${
+                className={`min-w-[28px] px-1.5 py-1.5 rounded-md text-xs ${
                   editor?.isActive("heading", { level })
                     ? "bg-gray-200 text-gray-900"
-                    : "bg-transparent text-gray-500 hover:bg-gray-100"
+                    : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 H{level}
               </button>
             ))}
 
-            {/* Lists */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
-            <button
-              type="button"
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              className={`p-1.5 rounded ${
-                editor?.isActive("bulletList")
-                  ? "bg-gray-200 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"
-                />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                editor?.chain().focus().toggleOrderedList().run()
-              }
-              className={`p-1.5 rounded ${
-                editor?.isActive("orderedList")
-                  ? "bg-gray-200 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7 6h13M7 12h13M7 18h13M3 6v.01M3 12v.01M3 18v.01"
-                />
-              </svg>
-            </button>
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`min-w-[28px] px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 ${
+                    editor?.isActive("bulletList") || editor?.isActive("orderedList")
+                      ? "bg-gray-200 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                  </svg>
+                  <span>List</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[160px]">
+                <div className="p-1">
+                  {/* Bullet List */}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!editor) return;
+                      if (editor.isActive("orderedList")) {
+                        editor.chain().focus().toggleOrderedList().run();
+                      }
+                      if (!editor.isActive("bulletList")) {
+                        editor.chain().focus().toggleBulletList().run();
+                      }
+                    }}
+                    onSelect={(e) => e.preventDefault()}
+                    className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      <span>Bullet list</span>
+                    </div>
+                    {editor?.isActive("bulletList") && (
+                      <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </DropdownMenuItem>
 
-            {/* Alignment */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
-            {[
-              { value: "left", icon: "L" },
-              { value: "center", icon: "C" },
-              { value: "right", icon: "R" },
-              { value: "justify", icon: "J" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() =>
-                  editor
-                    ?.chain()
-                    .focus()
-                    .setTextAlign(opt.value)
-                    .run()
-                }
-                className={`px-1.5 py-1 rounded text-[10px] ${
-                  editor?.isActive({ textAlign: opt.value })
-                    ? "bg-gray-200 text-gray-900"
-                    : "bg-transparent text-gray-500 hover:bg-gray-100"
-                }`}
-              >
-                {opt.icon}
-              </button>
-            ))}
+                  {/* Ordered List */}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!editor) return;
+                      if (editor.isActive("bulletList")) {
+                        editor.chain().focus().toggleBulletList().run();
+                      }
+                      if (!editor.isActive("orderedList")) {
+                        editor.chain().focus().toggleOrderedList().run();
+                      }
+                    }}
+                    onSelect={(e) => e.preventDefault()}
+                    className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span>1.</span>
+                      <span>Numbered list</span>
+                    </div>
+                    {editor?.isActive("orderedList") && (
+                      <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            {/* Colors */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
-            {[
-              { color: "#111827", className: "bg-gray-900" },
-              { color: "#ef4444", className: "bg-red-500" },
-              { color: "#22c55e", className: "bg-emerald-500" },
-              { color: "#3b82f6", className: "bg-blue-500" },
-              { color: "#f97316", className: "bg-orange-500" },
-            ].map((c) => (
-              <button
-                key={c.color}
-                type="button"
-                onClick={() =>
-                  editor
-                    ?.chain()
-                    .focus()
-                    .setMark("textColor", { color: c.color })
-                    .run()
-                }
-                className={`w-5 h-5 rounded-full border border-gray-300 ${c.className}`}
-              />
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                editor?.chain().focus().unsetMark("textColor").run()
-              }
-              className="px-1.5 py-1 rounded text-[11px] text-gray-500 hover:bg-gray-100"
-            >
-              Clear color
-            </button>
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 text-gray-700 hover:bg-gray-100"
+                >
+                  <span
+                    className="text-xs"
+                    style={{
+                      fontFamily: fontOptions[fontSelectedIndex].value || "inherit",
+                    }}
+                  >
+                    {fontOptions[fontSelectedIndex].preview}
+                  </span>
+                  <span>Font</span>
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[190px]">
+                <div className="flex flex-col gap-1 px-2 py-2">
+                  {fontOptions.map((opt, index) => (
+                    <DropdownMenuItem
+                      key={opt.label}
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => {
+                        setFontSelectedIndex(index);
+                        const chain = editor?.chain().focus();
+                        if (!chain) return;
+                        if (opt.value) {
+                          chain.setMark("fontFamily", { fontFamily: opt.value }).run();
+                        } else {
+                          chain.unsetMark("fontFamily").run();
+                        }
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="font-family"
+                        className="h-3 w-3 text-blue-600 border-gray-300"
+                        checked={fontSelectedIndex === index}
+                        readOnly
+                      />
+                      <span
+                        className="text-xs"
+                        style={{ fontFamily: opt.value || "inherit" }}
+                      >
+                        {opt.label}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            {/* Columns layout block + height controls */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`min-w-[28px] px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 ${
+                    editor?.isActive({ textAlign: "left" }) ||
+                    editor?.isActive({ textAlign: "center" }) ||
+                    editor?.isActive({ textAlign: "right" }) ||
+                    editor?.isActive({ textAlign: "justify" })
+                      ? "bg-gray-200 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h12M3 18h18" />
+                  </svg>
+                  <span>Align</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[140px]">
+                <DropdownMenuItem
+                  onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h12M3 18h18" />
+                  </svg>
+                  <span>Left</span>
+                  {editor?.isActive({ textAlign: "left" }) && (
+                    <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M6 12h12M3 18h18" />
+                  </svg>
+                  <span>Center</span>
+                  {editor?.isActive({ textAlign: "center" }) && (
+                    <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M9 12h12M3 18h18" />
+                  </svg>
+                  <span>Right</span>
+                  {editor?.isActive({ textAlign: "right" }) && (
+                    <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => editor?.chain().focus().setTextAlign("justify").run()}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h18M3 18h18" />
+                  </svg>
+                  <span>Justify</span>
+                  {editor?.isActive({ textAlign: "justify" }) && (
+                    <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 text-gray-700 hover:bg-gray-100"
+                >
+                  <span
+                    className="inline-block w-3 h-3 rounded-full border border-gray-300"
+                    style={{ backgroundColor: colorPresets[colorSelectedIndex] }}
+                  />
+                  <span>Color</span>
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[190px]">
+                <div className="flex flex-col gap-2 px-2 py-2">
+                  {colorPresets.map((color, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="text-color-preset"
+                        className="h-3 w-3 text-blue-600 border-gray-300"
+                        checked={colorSelectedIndex === index}
+                        onChange={() => {
+                          setColorSelectedIndex(index);
+                          const color = colorPresets[index];
+                          editor
+                            ?.chain()
+                            .focus()
+                            .setMark("textColor", { color })
+                            .run();
+                        }}
+                      />
+                      <div className="relative w-6 h-6">
+                        <button
+                          type="button"
+                          className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center hover:ring-1 hover:ring-gray-400 transition-shadow"
+                          style={{ backgroundColor: color }}
+                          title="Set text color"
+                          onClick={() =>
+                            editor
+                              ?.chain()
+                              .focus()
+                              .setMark("textColor", { color })
+                              .run()
+                          }
+                        />
+                        <input
+                          type="color"
+                          value={color}
+                          aria-label={`Preset color ${index + 1}`}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          onChange={(e) => {
+                            const next = [...colorPresets];
+                            next[index] = e.target.value;
+                            setColorPresets(next);
+                            const picked = next[index];
+                            editor
+                              ?.chain()
+                              .focus()
+                              .setMark("textColor", { color: picked })
+                              .run();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor?.chain().focus().unsetMark("textColor").run();
+                    }}
+                    className="mt-1 px-2 py-1.5 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100 self-start"
+                  >
+                    Clear color
+                  </button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
             <button
               type="button"
               onClick={() => {
@@ -578,40 +1082,110 @@ export default function CreateBlogPage() {
                   ],
                 }));
 
+                const height = parseInt(sectionHeight || "250", 10) || 250;
+                const equalWidths = Array.from({ length: count }, () => "1").join(",");
                 editor
                   .chain()
                   .focus()
                   .insertContent({
                     type: "columns",
-                    attrs: { columns: count, height: parseInt(sectionHeight || "250", 10) || 250 },
+                    attrs: { columns: count, height, widths: equalWidths },
                     content,
                   })
                   .run();
               }}
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
+              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100 border border-transparent hover:border-gray-200"
             >
-              Columns layout
+              Columns
             </button>
-            <div className="flex items-center gap-1 ml-1">
-              <span className="text-[11px] text-gray-400">Section H(px):</span>
-              <input
-                type="number"
-                min={100}
-                max={1000}
-                value={sectionHeight}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSectionHeight(v);
-                  const num = parseInt(v, 10);
-                  if (!editor || Number.isNaN(num)) return;
-                  editor.commands.updateAttributes("columns", { height: num });
-                }}
-                className="w-16 px-1 py-0.5 border border-gray-200 rounded text-[11px] text-gray-600 bg-white"
-              />
-            </div>
+            {editor && (() => {
+              const sel = getSelectedColumnsAttrs(editor);
+              const cols = sel?.columns ?? 2;
+              const h = sel?.height ?? 250;
+              const ratioDisplay = sel?.widths ? widthsToRatio(sel.widths) : "";
+              const ratioPresets =
+                cols === 2
+                  ? [
+                      { label: "1:1", ratio: "1,1" },
+                      { label: "1:2", ratio: "1,2" },
+                      { label: "2:1", ratio: "2,1" },
+                    ]
+                  : cols === 3
+                  ? [
+                      { label: "1:1:1", ratio: "1,1,1" },
+                      { label: "1:2:1", ratio: "1,2,1" },
+                      { label: "1:1:2", ratio: "1,1,2" },
+                      { label: "2:1:1", ratio: "2,1,1" },
+                    ]
+                  : cols === 4
+                  ? [
+                      { label: "1:1:1:1", ratio: "1,1,1,1" },
+                      { label: "1:2:2:1", ratio: "1,2,2,1" },
+                      { label: "2:1:1:2", ratio: "2,1,1,2" },
+                    ]
+                  : [];
+              return sel ? (
+                <div className="flex flex-wrap items-center gap-2 ml-1.5 pl-1.5 border-l border-gray-200">
+                  <span className="text-[11px] text-gray-500 font-medium">Section</span>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().deleteSection().run()}
+                    className="px-2.5 py-1.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50"
+                    title="Delete entire section"
+                  >
+                    Delete section
+                  </button>
+                  <label className="flex items-center gap-1 text-[11px] text-gray-500">
+                    H(px):
+                    <input
+                      type="number"
+                      min={100}
+                      max={1000}
+                      value={h}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(num))
+                          editor.commands.updateAttributes("columns", { height: num });
+                      }}
+                      className="w-14 px-1 py-0.5 border border-gray-200 rounded text-[11px]"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-[11px] text-gray-500">
+                    Ratio:
+                    <input
+                      key={`ratio-${cols}-${ratioDisplay}`}
+                      type="text"
+                      placeholder="e.g. 1,2,1"
+                      defaultValue={ratioDisplay}
+                      onBlur={(e) => {
+                        const widths = ratioToWidths(e.target.value.trim(), cols);
+                        if (widths)
+                          editor.commands.updateAttributes("columns", { widths });
+                      }}
+                      className="w-20 px-1 py-0.5 border border-gray-200 rounded text-[11px] font-mono"
+                    />
+                  </label>
+                  {ratioPresets.map((preset) => {
+                    const widths = ratioToWidths(preset.ratio, cols);
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() =>
+                          widths &&
+                          editor.commands.updateAttributes("columns", { widths })
+                        }
+                        className="px-2 py-1 rounded-md text-[10px] border border-gray-200 hover:bg-gray-100 text-gray-700"
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null;
+            })()}
 
-            {/* Links */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
             <button
               type="button"
               onClick={() => {
@@ -624,9 +1198,9 @@ export default function CreateBlogPage() {
                   .setLink({ href: url })
                   .run();
               }}
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
+              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100"
             >
-              Set Link
+              Link
             </button>
             <button
               type="button"
@@ -637,9 +1211,9 @@ export default function CreateBlogPage() {
                   .unsetLink()
                   .run()
               }
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
+              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100"
             >
-              Remove Link
+              Unlink
             </button>
 
             {/* Insert image(s) from upload */}
@@ -650,33 +1224,12 @@ export default function CreateBlogPage() {
                 setPendingImageColumns(1);
                 bodyImageInputRef.current?.click();
               }}
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
+              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100 border border-transparent hover:border-gray-200"
             >
-              + Image
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPendingImageColumns(2);
-                bodyImageInputRef.current?.click();
-              }}
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
-            >
-              2 Images (columns)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPendingImageColumns(3);
-                bodyImageInputRef.current?.click();
-              }}
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
-            >
-              3 Images (columns)
+              Insert image
             </button>
 
-            {/* Clear formatting */}
-            <div className="h-5 w-px bg-gray-200 mx-1" />
+            <div className="h-4 w-px bg-gray-200 mx-1.5" />
             <button
               type="button"
               onClick={() =>
@@ -687,12 +1240,37 @@ export default function CreateBlogPage() {
                   .clearNodes()
                   .run()
               }
-              className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100"
+              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100"
             >
-              Clear
+              Clear format
             </button>
           </div>
-          <EditorContent editor={editor} />
+          <div className="tiptap-content">
+            <EditorContent editor={editor} />
+          </div>
+          {columnDeleteRects &&
+            columnDeleteRects.length > 0 &&
+            createPortal(
+              <div className="pointer-events-none fixed inset-0 z-10" aria-hidden>
+                {columnDeleteRects.map(({ index, top, left }) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="ttn-column-delete-btn pointer-events-auto absolute z-10"
+                    style={{ position: "fixed", top: `${top}px`, left: `${left}px` }}
+                    aria-label="Remove column"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      editorRef.current?.commands?.deleteColumnByIndex?.(index);
+                    }}
+                  >
+                    ×
+                  </button>
+                ))}
+              </div>,
+              document.body
+            )}
           <input
             ref={bodyImageInputRef}
             type="file"
