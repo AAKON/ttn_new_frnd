@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
-import { getMyCompanies } from "@/services/company";
+import { getMyCompanies, getMyFavsCompanies, toggleFavCompany } from "@/services/company";
 import { submitCompanyClaim, submitCompanyReport } from "@/services/contact/submitForm";
 import { useToast } from "@/hooks/use-toast";
 import { Share2, Bookmark, ChevronLeft, ChevronRight, AlertCircle, Download, Grid3x3, Building2, MapPin, Eye, Edit2 } from "lucide-react";
@@ -41,6 +41,8 @@ export default function CompanyDetailClient({ company }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportSaving, setReportSaving] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   // Use refs to avoid closure issues
   const dragStartRef = useRef(0);
@@ -50,6 +52,34 @@ export default function CompanyDetailClient({ company }) {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Sync initial favorite state from server
+  useEffect(() => {
+    let cancelled = false;
+    if (!session) {
+      setIsFavorite(false);
+      return;
+    }
+    (async () => {
+      try {
+        const favs = await getMyFavsCompanies();
+        if (!Array.isArray(favs)) return;
+        const isFav = favs.some(
+          (item) =>
+            item?.slug === company.slug ||
+            item?.id === company.id
+        );
+        if (!cancelled) {
+          setIsFavorite(isFav);
+        }
+      } catch (e) {
+        console.error("Failed to load favorite state for company detail:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session, company.id, company.slug]);
 
   useEffect(() => {
     const el = aboutRef.current;
@@ -231,6 +261,29 @@ export default function CompanyDetailClient({ company }) {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!session) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to add this company to your favorites.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (favLoading) return;
+    setFavLoading(true);
+    try {
+      const result = await toggleFavCompany(company.slug, toast);
+      if (result && typeof result.is_favorite === "boolean") {
+        setIsFavorite(result.is_favorite);
+      } else {
+        setIsFavorite((prev) => !prev);
+      }
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
       <div className="container mx-auto px-4 py-8">
@@ -289,8 +342,25 @@ export default function CompanyDetailClient({ company }) {
                   {claiming ? "Submitting..." : "Claim this Business"}
                 </button>
               )}
-              <button className="p-2 border border-gray-300 bg-white text-gray-600 hover:bg-brand-600 hover:text-white hover:border-brand-600 rounded-lg transition-colors">
-                <Bookmark size={20} />
+              <button
+                onClick={handleToggleFavorite}
+                disabled={favLoading}
+                className={`p-2 border rounded-lg transition-colors ${
+                  isFavorite
+                    ? "bg-[rgba(247,147,30,0.08)] hover:bg-[rgba(247,147,30,0.14)]"
+                    : "border-gray-300 bg-white text-gray-600 hover:bg-brand-600 hover:text-white hover:border-brand-600"
+                }`}
+                style={
+                  isFavorite
+                    ? { color: "rgb(247,147,30)", borderColor: "rgb(247,147,30)" }
+                    : undefined
+                }
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Bookmark
+                  size={20}
+                  fill={isFavorite ? "currentColor" : "none"}
+                />
               </button>
             </div>
           </div>
@@ -923,7 +993,7 @@ export default function CompanyDetailClient({ company }) {
                 <button
                   type="button"
                   onClick={() => setReportOpen((v) => !v)}
-                  className="text-gray-600 hover:text-gray-900 hover:underline transition-colors inline-flex items-center gap-2 bg-transparent p-0"
+                  className="text-gray-600 hover:text-gray-900 underline transition-colors inline-flex items-center gap-2 bg-transparent p-0 font-normal"
                 >
                   <AlertCircle size={16} />
                   Report this listing
@@ -931,7 +1001,7 @@ export default function CompanyDetailClient({ company }) {
                 <button
                   type="button"
                   onClick={handleDownloadProfile}
-                  className="text-gray-600 hover:text-gray-900 hover:underline transition-colors inline-flex items-center gap-2 bg-transparent p-0"
+                  className="text-gray-600 hover:text-gray-900 underline transition-colors inline-flex items-center gap-2 bg-transparent p-0 font-normal"
                 >
                   <Download size={16} />
                   Download Profile
