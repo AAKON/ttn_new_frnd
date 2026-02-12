@@ -173,6 +173,24 @@ export async function toggleBlogStatus(id, toast) {
   return await adminRequest(`blogs/${id}/toggle-status`, { method: "POST" }, toast);
 }
 
+// Admin Companies
+export async function getAdminCompanies(page = 1, perPage = 10, search = "", status = "", isActive = "") {
+  let endpoint = `companies?page=${page}&perPage=${perPage}`;
+  if (search) endpoint += `&search=${encodeURIComponent(search)}`;
+  if (status) endpoint += `&status=${encodeURIComponent(status)}`;
+  if (isActive !== "") endpoint += `&is_active=${encodeURIComponent(isActive)}`;
+  const result = await adminRequest(endpoint, { method: "GET", cache: "no-store" });
+  return result?.data;
+}
+
+export async function toggleCompanyActive(id, toast) {
+  return await adminRequest(`companies/${id}/toggle-active`, { method: "POST" }, toast);
+}
+
+export async function deleteAdminCompany(id, toast) {
+  return await adminRequest(`companies/${id}`, { method: "DELETE" }, toast);
+}
+
 // Blog Types
 export async function getBlogTypes() {
   const result = await adminRequest("blog-types", { method: "GET", cache: "no-store" });

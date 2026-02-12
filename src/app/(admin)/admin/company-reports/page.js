@@ -16,7 +16,14 @@ export default function CompanyReportsPage() {
     setLoading(true);
     getCompanyReports(p, 10).then((d) => {
       setItems(d?.data || d || []);
-      if (d?.current_page) setPagination({ current_page: d.current_page, last_page: d.last_page, total: d.total });
+      if (d?.pagination) {
+        setPagination(d.pagination);
+      } else if (d?.current_page) {
+        setPagination({ current_page: d.current_page, last_page: d.last_page, total: d.total });
+      }
+    }).catch((err) => {
+      console.error("Error loading company reports:", err);
+      setItems([]);
     }).finally(() => setLoading(false));
   };
 

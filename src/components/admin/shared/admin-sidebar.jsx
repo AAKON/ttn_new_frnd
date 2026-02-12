@@ -35,6 +35,7 @@ const menuItems = [
   { label: "Admins", href: "/admin/admins", icon: UserCog },
   { label: "Users", href: "/admin/users", icon: Users },
   { type: "divider", label: "Business" },
+  { label: "Companies", href: "/admin/companies", icon: Building2 },
   { label: "Business Categories", href: "/admin/business-categories", icon: Layers },
   { label: "Business Types", href: "/admin/business-types", icon: Tag },
   { label: "Certificates", href: "/admin/certificates", icon: Award },

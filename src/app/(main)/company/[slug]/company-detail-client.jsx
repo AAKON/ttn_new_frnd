@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { getMyCompanies } from "@/services/company";
+import { submitCompanyClaim, submitCompanyReport } from "@/services/contact/submitForm";
+import { useToast } from "@/hooks/use-toast";
 import { Share2, Bookmark, ChevronLeft, ChevronRight, AlertCircle, Download, Grid3x3, Building2, MapPin, Eye, Edit2 } from "lucide-react";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
@@ -20,6 +22,7 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
 
 export default function CompanyDetailClient({ company }) {
   const { data: session } = useSession();
+  const { toast } = useToast();
   const [isOwnCompany, setIsOwnCompany] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeProductTab, setActiveProductTab] = useState(0);
@@ -34,6 +37,10 @@ export default function CompanyDetailClient({ company }) {
   const [dragOffset, setDragOffset] = useState(0);
   const [expandedFaqId, setExpandedFaqId] = useState(null);
   const [isHoveringClients, setIsHoveringClients] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportSaving, setReportSaving] = useState(false);
 
   // Use refs to avoid closure issues
   const dragStartRef = useRef(0);
@@ -180,6 +187,49 @@ export default function CompanyDetailClient({ company }) {
   const currentCategory = productCategories[activeProductTab] || productCategories[0];
   const currentProducts = productsByCategory[currentCategory] || [];
 
+  const handleClaim = async () => {
+    if (!session) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to claim this company.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (claiming) return;
+    setClaiming(true);
+    try {
+      const payload = { company_id: company.id, message: "" };
+      await submitCompanyClaim(payload, toast);
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    if (reportSaving) return;
+    setReportSaving(true);
+    try {
+      const payload = {
+        company_id: company.id,
+        message: reportMessage || "",
+        name: session?.user?.name || null,
+        email: session?.user?.email || null,
+      };
+      await submitCompanyReport(payload, toast);
+      setReportMessage("");
+      setReportOpen(false);
+    } finally {
+      setReportSaving(false);
+    }
+  };
+
+  const handleDownloadProfile = () => {
+    if (typeof window !== "undefined") {
+      window.print();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
@@ -230,8 +280,13 @@ export default function CompanyDetailClient({ company }) {
                   Edit Profile
                 </Link>
               ) : (
-                <button className="px-3 sm:px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-brand-600 hover:text-white hover:border-brand-600 rounded-md font-medium transition-colors text-xs sm:text-sm" suppressHydrationWarning>
-                  Claim this Business
+                <button
+                  onClick={handleClaim}
+                  disabled={claiming}
+                  className="px-3 sm:px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-brand-600 hover:text-white hover:border-brand-600 rounded-md font-medium transition-colors text-xs sm:text-sm disabled:opacity-60"
+                  suppressHydrationWarning
+                >
+                  {claiming ? "Submitting..." : "Claim this Business"}
                 </button>
               )}
               <button className="p-2 border border-gray-300 bg-white text-gray-600 hover:bg-brand-600 hover:text-white hover:border-brand-600 rounded-lg transition-colors">
@@ -865,15 +920,51 @@ export default function CompanyDetailClient({ company }) {
 
               {/* Links */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-xs sm:text-sm">
-                <a href="#" className="text-gray-600 hover:text-gray-900 hover:underline transition-colors inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReportOpen((v) => !v)}
+                  className="text-gray-600 hover:text-gray-900 hover:underline transition-colors inline-flex items-center gap-2 bg-transparent p-0"
+                >
                   <AlertCircle size={16} />
                   Report this listing
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 hover:underline transition-colors inline-flex items-center gap-2">
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadProfile}
+                  className="text-gray-600 hover:text-gray-900 hover:underline transition-colors inline-flex items-center gap-2 bg-transparent p-0"
+                >
                   <Download size={16} />
                   Download Profile
-                </a>
+                </button>
               </div>
+
+              {reportOpen && (
+                <form onSubmit={handleReportSubmit} className="mt-4 space-y-2">
+                  <textarea
+                    value={reportMessage}
+                    onChange={(e) => setReportMessage(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the issue with this listing..."
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReportOpen(false)}
+                      className="px-3 py-1.5 text-xs text-gray-500 bg-transparent border border-gray-200 rounded-md hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={reportSaving}
+                      className="px-3 py-1.5 text-xs font-semibold bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-60"
+                    >
+                      {reportSaving ? "Sending..." : "Submit report"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>
