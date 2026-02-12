@@ -28,9 +28,9 @@ export default async function BlogDetailPage({ params }) {
       </div>
 
       <article className="max-w-4xl mx-auto blog-details-container">
-        {blog.blog_type && (
+        {blog.blog_types && blog.blog_types.length > 0 && (
           <span className="text-sm font-semibold text-brand-600 uppercase tracking-wide">
-            {blog.blog_type.name || blog.blog_type}
+            {blog.blog_types[0].name}
           </span>
         )}
 
@@ -47,20 +47,20 @@ export default async function BlogDetailPage({ params }) {
           </p>
         )}
 
-        {blog.featured_image && (
+        {blog.featured_image_url && (
           <div className="mb-8 rounded-lg overflow-hidden">
             <img
-              src={blog.featured_image}
+              src={blog.featured_image_url}
               alt={blog.title}
               className="w-full h-auto object-cover max-h-[500px]"
             />
           </div>
         )}
 
-        {blog.body && (
+        {blog.content && (
           <div
             className="paragraph prose max-w-none text-gray-600"
-            dangerouslySetInnerHTML={{ __html: blog.body }}
+            dangerouslySetInnerHTML={{ __html: blog.content }}
           />
         )}
       </article>

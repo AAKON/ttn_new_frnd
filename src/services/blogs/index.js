@@ -47,5 +47,5 @@ export async function getBlogDetails(slug) {
     cache: "no-store",
   };
   const result = await apiRequest(endpoint, options);
-  return result?.data?.blog;
+  return result?.data;
 }
