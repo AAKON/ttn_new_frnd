@@ -10,7 +10,7 @@ export default function BusinessAdsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [formData, setFormData] = useState({ title: "", url: "", is_active: true });
+  const [formData, setFormData] = useState({ link: "" });
   const [image, setImage] = useState(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -19,26 +19,67 @@ export default function BusinessAdsPage() {
   useEffect(() => { load(); }, []);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    setSaving(true);
     try {
       const fd = new FormData();
-      fd.append("title", formData.title); fd.append("url", formData.url); fd.append("is_active", formData.is_active ? "1" : "0");
+      fd.append("link", formData.link || "");
       if (image) fd.append("image", image);
-      const result = editItem ? await updateBusinessAd(editItem.id, fd, toast) : await createBusinessAd(fd, toast);
-      if (result?.status) { setShowForm(false); setEditItem(null); setImage(null); load(); }
-    } finally { setSaving(false); }
+      const result = editItem
+        ? await updateBusinessAd(editItem.id, fd, toast)
+        : await createBusinessAd(fd, toast);
+      if (result?.status) {
+        setShowForm(false);
+        setEditItem(null);
+        setImage(null);
+        setFormData({ link: "" });
+        load();
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEdit = (item) => { setEditItem(item); setFormData({ title: item.title || "", url: item.url || "", is_active: item.is_active }); setImage(null); setShowForm(true); };
+  const handleEdit = (item) => {
+    setEditItem(item);
+    setFormData({ link: item.link || "" });
+    setImage(null);
+    setShowForm(true);
+  };
 
   const columns = [
     { key: "id", label: "ID", width: "60px" },
-    { key: "title", label: "Title" },
-    { key: "url", label: "URL" },
-    { key: "is_active", label: "Active", render: (row) => row.is_active ? "Yes" : "No" },
-    { key: "actions", label: "Actions", width: "120px", render: (row) => (
-      <div className="flex gap-2"><button onClick={() => handleEdit(row)} className="text-sm text-brand-600 bg-transparent font-medium">Edit</button><DeleteDialog onConfirm={() => { deleteBusinessAd(row.id, toast).then(load); }} /></div>
-    )},
+    { key: "link", label: "URL" },
+    {
+      key: "image",
+      label: "Image",
+      render: (row) =>
+        row.image ? (
+          <img src={row.image} alt="" className="h-8 w-auto rounded" />
+        ) : (
+          "-"
+        ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      width: "120px",
+      render: (row) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleEdit(row)}
+            className="text-sm text-brand-600 bg-transparent font-medium"
+          >
+            Edit
+          </button>
+          <DeleteDialog
+            onConfirm={() => {
+              deleteBusinessAd(row.id, toast).then(load);
+            }}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -50,12 +91,27 @@ export default function BusinessAdsPage() {
       {showForm && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="formLabelClasses block mb-1">Title</label><input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="input_style" required /></div>
-              <div><label className="formLabelClasses block mb-1">URL</label><input type="text" value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} className="input_style" /></div>
+            <div>
+              <label className="formLabelClasses block mb-1">URL</label>
+              <input
+                type="text"
+                value={formData.link ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, link: e.target.value })
+                }
+                className="input_style"
+                required
+              />
             </div>
-            <div><label className="formLabelClasses block mb-1">Image</label><input type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} className="text-sm" /></div>
-            <div className="flex items-center gap-2"><input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} /><label className="text-sm">Active</label></div>
+            <div>
+              <label className="formLabelClasses block mb-1">Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImage(e.target.files[0])}
+                className="text-sm"
+              />
+            </div>
             <div className="flex gap-3">
               <button type="submit" disabled={saving} className="bg-brand-600 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">{saving ? "Saving..." : editItem ? "Update" : "Create"}</button>
               <button type="button" onClick={() => setShowForm(false)} className="bg-white text-gray-600 border border-gray-200 px-4 py-2.5 rounded-lg text-sm">Cancel</button>

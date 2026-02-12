@@ -1,6 +1,7 @@
 import { getBlogDetails } from "@/services/blogs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import BlogDetailClient from "../blog-detail-client";
 
 export default async function BlogDetailPage({ params }) {
   const { slug } = await params;
@@ -64,6 +65,9 @@ export default async function BlogDetailPage({ params }) {
           />
         )}
       </article>
+
+      {/* Client-only side effect to track recently viewed */}
+      <BlogDetailClient blog={blog} />
     </div>
   );
 }

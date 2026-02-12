@@ -326,6 +326,20 @@ html body[data-scroll-locked] {
 	stroke: white;
 }
 
+/* Business Ads slider marquee */
+.social-slider-track {
+	animation: social-slider-marquee 30s linear infinite;
+}
+
+@keyframes social-slider-marquee {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(-50%);
+	}
+}
+
 /* Admin sidebar styles */
 .admin-sidebar {
 	@apply border-r border-gray-200 bg-white;
