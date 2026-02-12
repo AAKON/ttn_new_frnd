@@ -26,7 +26,14 @@ const RecentCompany = ({ data = [] }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-6">
-          {data.slice(0, 5).map((company) => (
+          {data.slice(0, 5).map((company) => {
+            const categories = Array.isArray(company.business_categories)
+              ? company.business_categories
+              : company.business_category
+              ? [company.business_category]
+              : [];
+
+            return (
             <Link
               key={company.id}
               href={`/company/${company.slug || company.id}`}
@@ -48,14 +55,30 @@ const RecentCompany = ({ data = [] }) => {
                   {company.name}
                 </h3>
                 {company.location?.name && (
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    {company.location.name}
-                  </p>
+                  <div className="mt-1 flex items-center justify-center gap-1 text-[11px] text-gray-500">
+                    {company.location.flag_path && (
+                      <img
+                        src={company.location.flag_path}
+                        alt={company.location.name}
+                        className="w-4 h-3 object-cover rounded-sm"
+                      />
+                    )}
+                    <span className="truncate max-w-[120px]">
+                      {company.location.name}
+                    </span>
+                  </div>
                 )}
-                {company.business_category?.name && (
-                  <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium text-gray-700 bg-gray-50 border border-gray-200">
-                    {company.business_category.name}
-                  </span>
+                {categories.length > 0 && (
+                  <div className="mt-2 flex flex-wrap justify-center gap-1">
+                    {categories.slice(0, 3).map((cat) => (
+                      <span
+                        key={cat.id}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium text-gray-700 bg-gray-50 border border-gray-200"
+                      >
+                        {cat.name}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 <div className="mt-4">
                   <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-medium text-brand-600 bg-orange-50 group-hover:bg-brand-600 group-hover:text-white transition-colors">
@@ -64,7 +87,7 @@ const RecentCompany = ({ data = [] }) => {
                 </div>
               </div>
             </Link>
-          ))}
+          )})}
         </div>
 
       </Container>

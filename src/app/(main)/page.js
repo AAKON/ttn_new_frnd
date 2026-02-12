@@ -84,7 +84,7 @@ export default async function Home() {
           <RecentCompany data={recentCompanies} />
 
           {/* Business Area Section */}
-          <BusinessArea />
+          <BusinessArea categories={categories} />
 
           {/* Partners Section */}
           <Section className="bg-gray-50">
