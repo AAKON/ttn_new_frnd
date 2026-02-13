@@ -39,8 +39,8 @@ const RecentCompany = ({ data = [] }) => {
               href={`/company/${company.slug || company.id}`}
               className="group"
             >
-              <div className="bg-white border border-gray-100 rounded-2xl px-5 py-6 text-center hover:shadow-md hover:border-brand-200 transition-all h-full flex flex-col items-center">
-                <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center mb-4 mx-auto overflow-hidden group-hover:bg-orange-100 transition-colors">
+              <div className="bg-white border border-gray-100 rounded-2xl px-6 py-8 text-center hover:shadow-md hover:border-brand-200 transition-all h-full flex flex-col items-center">
+                <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mb-5 mx-auto overflow-hidden group-hover:bg-orange-100 transition-colors">
                   {company.profile_pic_url ? (
                     <img
                       src={company.profile_pic_url}
@@ -48,40 +48,40 @@ const RecentCompany = ({ data = [] }) => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-xl text-orange-500">🏢</span>
+                    <span className="text-3xl text-orange-500">🏢</span>
                   )}
                 </div>
-                <h3 className="text-sm font-semibold text-gray-900 group-hover:text-brand-600 transition-colors line-clamp-2 min-h-[2.5rem]">
+                <h3 className="text-base font-semibold text-gray-900 group-hover:text-brand-600 transition-colors line-clamp-2 min-h-[3rem]">
                   {company.name}
                 </h3>
                 {company.location?.name && (
-                  <div className="mt-1 flex items-center justify-center gap-1 text-[11px] text-gray-500">
+                  <div className="mt-2 flex items-center justify-center gap-1.5 text-sm text-gray-500">
                     {company.location.flag_path && (
                       <img
                         src={company.location.flag_path}
                         alt={company.location.name}
-                        className="w-4 h-3 object-cover rounded-sm"
+                        className="w-5 h-4 object-cover rounded-sm"
                       />
                     )}
-                    <span className="truncate max-w-[120px]">
+                    <span className="truncate max-w-[140px]">
                       {company.location.name}
                     </span>
                   </div>
                 )}
                 {categories.length > 0 && (
-                  <div className="mt-2 flex flex-wrap justify-center gap-1">
+                  <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                     {categories.slice(0, 3).map((cat) => (
                       <span
                         key={cat.id}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium text-gray-700 bg-gray-50 border border-gray-200"
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200"
                       >
                         {cat.name}
                       </span>
                     ))}
                   </div>
                 )}
-                <div className="mt-4">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-medium text-brand-600 bg-orange-50 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                <div className="mt-5">
+                  <span className="inline-flex items-center px-5 py-2 rounded-full text-sm font-medium text-brand-600 bg-orange-50 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                     View company
                   </span>
                 </div>

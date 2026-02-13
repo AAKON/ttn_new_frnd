@@ -91,7 +91,7 @@ export default function FavoritesPage() {
                         </div>
                         <button
                           onClick={() => removeFavCompany(company.slug)}
-                          className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full border border-red-200 hover:bg-red-50 transition-colors bg-white p-0 text-red-500"
+                          className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full border border-[rgba(247,147,30,0.5)] hover:bg-[rgba(247,147,30,0.08)] transition-colors bg-white p-0 text-[rgb(247,147,30)]"
                           title="Remove from favorites"
                         >
                           <svg
@@ -217,7 +217,7 @@ export default function FavoritesPage() {
                         )}
                         <button
                           onClick={() => removeFavProposal(proposal.id)}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full border border-red-200 hover:bg-red-50 transition-colors bg-white p-0 text-red-500"
+                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full border border-[rgba(247,147,30,0.5)] hover:bg-[rgba(247,147,30,0.08)] transition-colors bg-white p-0 text-[rgb(247,147,30)]"
                           title="Remove from favorites"
                         >
                           <svg

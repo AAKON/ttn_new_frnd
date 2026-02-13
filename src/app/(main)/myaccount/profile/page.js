@@ -22,7 +22,8 @@ export default function ProfilePage() {
       fd.append("first_name", profile.first_name || "");
       fd.append("last_name", profile.last_name || "");
       fd.append("phone", profile.phone || "");
-      if (image) fd.append("profile_picture", image);
+      // Backend expects single file field named "image" (see auth.routes.js userUpload.single('image'))
+      if (image) fd.append("image", image);
       await updateUserProfileReq(fd, toast);
     } finally {
       setSaving(false);
