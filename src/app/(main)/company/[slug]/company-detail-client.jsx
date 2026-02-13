@@ -48,6 +48,10 @@ export default function CompanyDetailClient({ company }) {
   const dragStartRef = useRef(0);
   const isDraggingRef = useRef(false);
   const containerRef = useRef(null);
+  const clientsTrackRef = useRef(null);
+  const clientsAnimationRef = useRef(null);
+  const clientsLastTimeRef = useRef(null);
+  const clientsOffsetRef = useRef(0);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -112,17 +116,62 @@ export default function CompanyDetailClient({ company }) {
     setProductCarouselIndex(0);
   }, [activeProductTab]);
 
-  // Auto-slide clients continuously (paused on hover)
+  // Auto-scroll clients continuously (paused on hover) - marquee style like partners section
   useEffect(() => {
     const clients = company.clients || [];
-    if (clients.length === 0 || isHoveringClients || isDragging) return;
+    if (!clients.length) return;
 
-    const interval = setInterval(() => {
-      setClientSlideIndex((prev) => (prev + 1) % (clients.length * 2));
-    }, 4000); // Change slide every 4 seconds
+    const speed = 40; // pixels per second (slow, smooth)
 
-    return () => clearInterval(interval);
-  }, [company.clients, isHoveringClients, isDragging]);
+    const animate = (time) => {
+      const track = clientsTrackRef.current;
+      if (!track) {
+        clientsAnimationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (isHoveringClients) {
+        clientsLastTimeRef.current = time;
+        clientsAnimationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (clientsLastTimeRef.current == null) {
+        clientsLastTimeRef.current = time;
+      }
+
+      const delta = time - clientsLastTimeRef.current;
+      clientsLastTimeRef.current = time;
+
+      const totalWidth = track.scrollWidth / 2;
+      if (totalWidth <= 0) {
+        clientsAnimationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      clientsOffsetRef.current -= (delta * speed) / 1000;
+
+      if (-clientsOffsetRef.current >= totalWidth) {
+        clientsOffsetRef.current += totalWidth;
+      }
+
+      track.style.transform = `translateX(${clientsOffsetRef.current}px)`;
+
+      clientsAnimationRef.current = requestAnimationFrame(animate);
+    };
+
+    clientsOffsetRef.current = 0;
+    clientsLastTimeRef.current = null;
+    clientsAnimationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (clientsAnimationRef.current) {
+        cancelAnimationFrame(clientsAnimationRef.current);
+      }
+      clientsAnimationRef.current = null;
+      clientsLastTimeRef.current = null;
+    };
+  }, [company.clients, isHoveringClients]);
 
   const handleMouseDown = (e) => {
     dragStartRef.current = e.clientX;
@@ -721,65 +770,36 @@ export default function CompanyDetailClient({ company }) {
                   <h3 className="text-base font-semibold text-gray-900 mb-6">Clients</h3>
                   {(company.clients || []).length > 0 ? (
                     <div className="relative">
-                      {/* Auto-scrolling Clients Slider */}
+                      {/* Auto-scrolling Clients Slider - marquee style like partners section */}
                       <div
-                        ref={containerRef}
-                        className="overflow-hidden bg-gray-50 rounded-lg p-6 cursor-grab active:cursor-grabbing select-none"
+                        className="overflow-hidden bg-gray-50 rounded-lg p-6 select-none"
                         onMouseEnter={() => setIsHoveringClients(true)}
                         onMouseLeave={handleContainerMouseLeave}
-                        onMouseDown={handleMouseDown}
                       >
-                        <style>{`
-                          @keyframes scroll-left {
-                            0% {
-                              transform: translateX(0);
-                            }
-                            100% {
-                              transform: translateX(-100%);
-                            }
-                          }
-                          .scroll-animation {
-                            animation: scroll-left ${company.clients.length * 4}s linear infinite;
-                          }
-                          .scroll-animation.paused {
-                            animation-play-state: paused;
-                          }
-                        `}</style>
                         <div
-                          className={`flex gap-6 ${!isDragging && !isHoveringClients ? 'scroll-animation' : ''}`}
-                          style={{
-                            transform: (() => {
-                              const baseTransform = -clientSlideIndex * 100;
-                              if (isDragging && containerRef.current) {
-                                const containerWidth = containerRef.current.offsetWidth;
-                                const dragPercent = (dragOffset / containerWidth) * 100;
-                                console.log('Transform:', `translateX(${baseTransform + dragPercent}%)`);
-                                return `translateX(${baseTransform + dragPercent}%)`;
-                              }
-                              return `translateX(${baseTransform}%)`;
-                            })(),
-                            transition: isDragging ? 'none' : 'transform 0.6s ease-out'
-                          }}
+                          ref={clientsTrackRef}
+                          className="flex items-center will-change-transform"
+                          style={{ transform: "translateX(0px)" }}
                         >
-                          {/* Duplicate clients for seamless loop */}
                           {[...company.clients, ...company.clients].map((client, index) => (
                             <div
                               key={`${client.id}-${index}`}
-                              className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/4 flex items-center justify-center select-none"
+                              className="relative h-28 min-w-[170px] bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex items-center justify-center cursor-pointer mr-3"
                               draggable={false}
                             >
-                              <div className="bg-white rounded-lg p-4 shadow-sm flex items-center justify-center h-24 w-full">
-                                {client.image_url ? (
-                                  <img
-                                    src={client.image_url}
-                                    alt="Client"
-                                    className="h-full w-full object-contain"
-                                    draggable={false}
-                                  />
-                                ) : (
-                                  <span className="text-gray-400 text-sm">No image</span>
-                                )}
-                              </div>
+                              {client.image_url ? (
+                                <img
+                                  src={client.image_url}
+                                  alt="Client"
+                                  className="absolute inset-0 w-full h-full object-cover object-center"
+                                  style={{ objectFit: "cover" }}
+                                  draggable={false}
+                                />
+                              ) : (
+                                <span className="text-gray-400 text-sm z-10 px-2 text-center">
+                                  No image
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>

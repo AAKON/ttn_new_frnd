@@ -284,16 +284,16 @@ const Hero = ({ categories = [], locations = [] }) => {
 
           {/* Quick Tags */}
           <div className="flex flex-wrap justify-center gap-3 mt-6">
-            <Link href="/sourcing?keyword=Sports+Wear" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
+            <Link href="/company?keyword=Sports+Wear" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
               Sports Wear
             </Link>
-            <Link href="/sourcing?keyword=Hoodie" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
+            <Link href="/company?keyword=Hoodie" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
               Hoodie
             </Link>
-            <Link href="/sourcing?keyword=Tops" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
+            <Link href="/company?keyword=Tops" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
               Tops
             </Link>
-            <Link href="/sourcing?keyword=Cotton+Yarn" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
+            <Link href="/company?keyword=Cotton+Yarn" className="px-4 py-2 bg-black/20 text-white rounded-lg text-sm hover:bg-black/30 transition">
               Cotton Yarn
             </Link>
           </div>

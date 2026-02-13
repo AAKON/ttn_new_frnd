@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiRequest } from "@/utils/api";
 import Link from "next/link";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { getMyFavsCompanies, toggleFavCompany } from "@/services/company";
 
 export default function CompanyListingPage() {
+  const searchParams = useSearchParams();
   const [companies, setCompanies] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -48,6 +50,7 @@ export default function CompanyListingPage() {
   const categoryDropdownRef = useRef(null);
   const mobileCategoryDropdownRef = useRef(null);
   const countryDropdownRef = useRef(null);
+  const urlParamsInitialized = useRef(false);
 
   // Close location dropdown on outside click
   useEffect(() => {
@@ -180,6 +183,30 @@ export default function CompanyListingPage() {
       }
     })();
   }, []);
+
+  // Initialize from URL parameters on mount
+  useEffect(() => {
+    if (urlParamsInitialized.current) return;
+    
+    const urlKeyword = searchParams.get("keyword") || "";
+    const urlCategory = searchParams.get("category") || "";
+    const urlLocation = searchParams.get("location") || "";
+
+    if (urlKeyword || urlCategory || urlLocation) {
+      setHeroKeyword(urlKeyword);
+      setHeroCategory(urlCategory);
+      setHeroLocation(urlLocation);
+
+      setFilters((prev) => ({
+        ...prev,
+        keyword: urlKeyword,
+        locationId: urlLocation ? Number(urlLocation) : null,
+        businessCategoryIds: urlCategory ? [Number(urlCategory)] : [],
+      }));
+    }
+    
+    urlParamsInitialized.current = true;
+  }, [searchParams]);
 
   useEffect(() => {
     fetchFilterOptions();

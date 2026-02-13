@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Container, Section } from "@/components/shared";
 
 const ITEMS_PER_SLIDE = 3;
 
 const SocialSlider = ({ webAds = [] }) => {
   const ads = Array.isArray(webAds) ? webAds.filter((a) => a.image) : [];
+  const [isHovered, setIsHovered] = useState(false);
+  const intervalRef = useRef(null);
 
   const slides = useMemo(() => {
     if (!ads.length) return [];
@@ -38,21 +40,49 @@ const SocialSlider = ({ webAds = [] }) => {
     setCurrent(next);
   };
 
-  // Autoplay between slides
+  // Autoplay between slides - pauses on hover
   useEffect(() => {
     if (total <= 1) return;
-    const id = setInterval(() => {
-      setCurrent((prev) => ((prev + 1) % total));
-    }, 5000);
-    return () => clearInterval(id);
-  }, [total]);
+    
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    // Only start interval if not hovered
+    if (!isHovered) {
+      intervalRef.current = setInterval(() => {
+        setCurrent((prev) => ((prev + 1) % total));
+      }, 5000);
+    }
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [total, isHovered]);
+
+  const handleAdClick = (e, ad) => {
+    if (!ad.link || !ad.link.trim()) {
+      e.preventDefault();
+      return;
+    }
+    // Link will open in new tab via target="_blank"
+  };
 
   return (
     <Section>
       <Container>
-        <div className="overflow-hidden">
+        <div
+          className="overflow-hidden"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           <div
-            className="flex transition-transform duration-500 ease-out"
+            className="flex transition-transform duration-700 ease-in-out will-change-transform"
             style={{ transform: `translateX(-${current * 100}%)` }}
           >
             {slides.map((group, slideIndex) => (
@@ -60,21 +90,35 @@ const SocialSlider = ({ webAds = [] }) => {
                 key={slideIndex}
                 className="w-full shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 px-1"
               >
-                {group.map((ad, idx) => (
-                  <a
-                    key={`${ad.id}-${idx}`}
-                    href={ad.link || "#"}
-                    target={ad.link ? "_blank" : undefined}
-                    rel={ad.link ? "noopener noreferrer" : undefined}
-                    className="block rounded-2xl overflow-hidden h-24 md:h-28 lg:h-32 bg-gray-100 hover:shadow-lg transition-shadow"
-                  >
-                    <img
-                      src={ad.image}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
-                ))}
+                {group.map((ad, idx) => {
+                  const hasLink = ad.link && ad.link.trim() && ad.link !== "#";
+                  const Component = hasLink ? "a" : "div";
+                  const props = hasLink
+                    ? {
+                        href: ad.link,
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        onClick: (e) => handleAdClick(e, ad),
+                      }
+                    : {};
+
+                  return (
+                    <Component
+                      key={`${ad.id}-${idx}`}
+                      {...props}
+                      className={`relative block w-full rounded-2xl overflow-hidden h-24 md:h-28 lg:h-32 bg-gray-100 hover:shadow-lg transition-shadow ${
+                        hasLink ? "cursor-pointer" : "cursor-default"
+                      }`}
+                    >
+                      <img
+                        src={ad.image}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover object-center"
+                        style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                      />
+                    </Component>
+                  );
+                })}
               </div>
             ))}
           </div>
