@@ -2,35 +2,49 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Container, Section } from "@/components/shared";
 
-const ITEMS_PER_SLIDE = 3;
+const ITEMS_PER_SLIDE_DESKTOP = 3;
+const ITEMS_PER_SLIDE_MOBILE = 1;
 
 const SocialSlider = ({ webAds = [] }) => {
   const ads = Array.isArray(webAds) ? webAds.filter((a) => a.image) : [];
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const intervalRef = useRef(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const itemsPerSlide = isMobile ? ITEMS_PER_SLIDE_MOBILE : ITEMS_PER_SLIDE_DESKTOP;
 
   const slides = useMemo(() => {
     if (!ads.length) return [];
     const groups = [];
-    const slideCount = Math.ceil(ads.length / ITEMS_PER_SLIDE);
+    const slideCount = Math.ceil(ads.length / itemsPerSlide) || 1;
 
     for (let s = 0; s < slideCount; s++) {
-      const start = s * ITEMS_PER_SLIDE;
-      let group = ads.slice(start, start + ITEMS_PER_SLIDE);
+      const start = s * itemsPerSlide;
+      let group = ads.slice(start, start + itemsPerSlide);
 
-      // If last group has less than 3 items, fill with items from start
-      if (group.length < ITEMS_PER_SLIDE) {
-        const needed = ITEMS_PER_SLIDE - group.length;
+      if (group.length < itemsPerSlide) {
+        const needed = itemsPerSlide - group.length;
         group = group.concat(ads.slice(0, needed));
       }
       groups.push(group);
     }
 
     return groups;
-  }, [ads]);
+  }, [ads, itemsPerSlide]);
 
   const [current, setCurrent] = useState(0);
   const total = slides.length;
+
+  useEffect(() => {
+    if (total > 0 && current >= total) setCurrent(total - 1);
+  }, [total, current]);
 
   if (!total) return null;
 
@@ -88,7 +102,7 @@ const SocialSlider = ({ webAds = [] }) => {
             {slides.map((group, slideIndex) => (
               <div
                 key={slideIndex}
-                className="w-full shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 px-1"
+                className="w-full shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 px-2 sm:px-1"
               >
                 {group.map((ad, idx) => {
                   const hasLink = ad.link && ad.link.trim() && ad.link !== "#";
@@ -106,9 +120,9 @@ const SocialSlider = ({ webAds = [] }) => {
                     <Component
                       key={`${ad.id}-${idx}`}
                       {...props}
-                      className={`relative block w-full rounded-2xl overflow-hidden h-24 md:h-28 lg:h-32 bg-gray-100 hover:shadow-lg transition-shadow ${
+                      className={`relative block w-full rounded-2xl overflow-hidden bg-gray-100 hover:shadow-lg transition-shadow ${
                         hasLink ? "cursor-pointer" : "cursor-default"
-                      }`}
+                      } h-44 sm:h-32 md:h-28 lg:h-32`}
                     >
                       <img
                         src={ad.image}
@@ -123,7 +137,7 @@ const SocialSlider = ({ webAds = [] }) => {
             ))}
           </div>
 
-          {/* Navigation dots */}
+          {/* Navigation dots - pill style on mobile */}
           {total > 1 && (
             <div className="mt-4 flex justify-center gap-2">
               {Array.from({ length: total }).map((_, i) => (
@@ -131,9 +145,9 @@ const SocialSlider = ({ webAds = [] }) => {
                   key={i}
                   type="button"
                   onClick={() => goTo(i)}
-                  className={`h-2 w-2 rounded-full transition-colors ${
-                    i === current ? "bg-orange-400" : "bg-gray-300"
-                  }`}
+                  className={`transition-colors sm:rounded-full rounded-md ${
+                    i === current ? "bg-[rgb(247,147,30)]" : "bg-gray-300"
+                  } w-6 h-2 sm:w-2 sm:h-2`}
                   aria-label={`Go to slide ${i + 1}`}
                 />
               ))}

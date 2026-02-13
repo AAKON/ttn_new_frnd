@@ -111,7 +111,7 @@ export default function PartnersSlider({ partners = [] }) {
             <Component
               key={`${partner.id}-${idx}`}
               {...props}
-              className="relative h-28 min-w-[170px] bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex items-center justify-center cursor-pointer mr-3"
+              className="relative h-20 sm:h-24 lg:h-28 min-w-[140px] sm:min-w-[160px] lg:min-w-[170px] bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex items-center justify-center cursor-pointer mr-2 sm:mr-3"
             >
               {partner.image ? (
                 <img

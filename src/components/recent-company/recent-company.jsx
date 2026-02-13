@@ -7,25 +7,25 @@ const RecentCompany = ({ data = [] }) => {
   return (
     <Section>
       <Container>
-        <div className="mb-8 flex items-end justify-between gap-4">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 px-4 sm:px-0">
           <div>
-            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-900">
               Recently Added
             </h2>
-            <p className="mt-1 text-sm md:text-base text-gray-500">
+            <p className="mt-1 text-xs sm:text-sm md:text-base text-gray-500">
               Discover newly joined textile and apparel businesses.
             </p>
           </div>
           <Link
             href="/company"
-            className="hidden md:inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700"
+            className="hidden sm:inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700"
           >
             View all businesses
             <span className="ml-1">↗</span>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-5 mb-6 px-4 sm:px-0">
           {data.slice(0, 5).map((company) => {
             const categories = Array.isArray(company.business_categories)
               ? company.business_categories

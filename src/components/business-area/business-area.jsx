@@ -20,11 +20,11 @@ const BusinessArea = ({ categories = [] }) => {
   return (
     <Section className="bg-gray-50">
       <Container>
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-6 sm:mb-8 px-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
             Business Area
           </h2>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             Explore our extensive range of textile &amp; apparel products &
             services.
           </p>
