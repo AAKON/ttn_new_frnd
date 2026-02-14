@@ -12,10 +12,7 @@ export async function submitComment(id, comment, toast) {
   const token = session?.accessToken;
 
   const endpoint = `sourcing-proposals/${id}/comments`;
-  const formData = new FormData();
-  formData.append("comment", comment);
-
-  const options = { method: "POST", body: formData, isFormData: true };
+  const options = { method: "POST", body: { comment } };
   return await apiRequest(endpoint, options, toast, token);
 }
 
@@ -51,9 +48,6 @@ export async function submitReply(commentId, reply, toast) {
   const token = session?.accessToken;
 
   const endpoint = `sourcing-proposals/comments/${commentId}/replies`;
-  const formData = new FormData();
-  formData.append("reply", reply);
-
-  const options = { method: "POST", body: formData, isFormData: true };
+  const options = { method: "POST", body: { reply } };
   return await apiRequest(endpoint, options, toast, token);
 }
