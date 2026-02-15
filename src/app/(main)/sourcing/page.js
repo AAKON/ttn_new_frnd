@@ -763,7 +763,13 @@ export default function SourcingListingPage() {
             {/* Results Header */}
             <div className="flex items-center justify-between mb-6 bg-gray-800 lg:bg-transparent rounded-lg lg:rounded-none px-4 py-3 lg:p-0">
               <p className="text-sm lg:text-lg font-semibold text-white lg:text-gray-900">
-                Showing <span>{Math.min(proposals.length, total)}</span> proposals of <span>{total}</span>
+                {loading && proposals.length === 0 ? (
+                  "Loading proposals..."
+                ) : (
+                  <>
+                    Showing <span>{Math.min(proposals.length, total)}</span> proposals of <span>{total}</span>
+                  </>
+                )}
               </p>
               <div className="flex items-center gap-3">
                 <Link
@@ -785,8 +791,29 @@ export default function SourcingListingPage() {
             </div>
 
             {loading && proposals.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-gray-500">Loading proposals...</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="border border-gray-100 rounded-lg bg-white flex flex-col overflow-hidden animate-pulse">
+                    <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                      <div className="h-4 w-24 bg-gray-200 rounded" />
+                      <div className="h-8 w-8 rounded-full bg-gray-200" />
+                    </div>
+                    <div className="aspect-[4/1] bg-gray-200 mx-4 rounded-lg" />
+                    <div className="p-4 flex flex-col flex-1">
+                      <div className="h-4 w-3/4 bg-gray-200 rounded mb-3" />
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        <div className="h-5 w-16 bg-gray-100 rounded" />
+                        <div className="h-5 w-20 bg-gray-100 rounded" />
+                        <div className="h-5 w-14 bg-gray-100 rounded" />
+                      </div>
+                      <div className="h-4 w-20 bg-gray-100 rounded ml-auto mb-3" />
+                      <div className="flex gap-3 border-t border-gray-100 pt-3">
+                        <div className="h-9 flex-1 bg-gray-200 rounded-md" />
+                        <div className="h-9 flex-1 bg-gray-200 rounded-md" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : proposals.length === 0 ? (
               <div className="text-center py-16">

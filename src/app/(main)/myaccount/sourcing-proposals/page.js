@@ -29,7 +29,28 @@ export default function MySourcingProposalsPage() {
         </Link>
       </div>
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white animate-pulse">
+              <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                <div className="h-4 w-20 bg-gray-200 rounded" />
+                <div className="h-5 w-14 bg-gray-200 rounded-full" />
+              </div>
+              <div className="mx-3 mb-1 h-24 bg-gray-200 rounded-lg" />
+              <div className="px-3 pb-3 pt-2 space-y-2">
+                <div className="h-4 w-2/3 bg-gray-200 rounded" />
+                <div className="flex gap-1.5">
+                  <div className="h-5 w-14 bg-gray-100 rounded-full" />
+                  <div className="h-5 w-16 bg-gray-100 rounded-full" />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <div className="h-8 w-20 bg-gray-200 rounded-md" />
+                  <div className="h-8 w-20 bg-gray-200 rounded-md" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : proposals.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <p className="text-gray-500">No proposals yet.</p>
