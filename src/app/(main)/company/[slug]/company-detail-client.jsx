@@ -308,8 +308,32 @@ export default function CompanyDetailClient({ company }) {
   };
 
   const handleDownloadProfile = () => {
-    if (typeof window !== "undefined") {
-      window.print();
+    if (typeof window !== "undefined" && company?.slug) {
+      window.open(`/company/${company.slug}/profile`, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleShare = async () => {
+    if (typeof window === "undefined" || !company?.slug) return;
+    const url = window.location.href;
+    const title = company.name ? `${company.name} - Company Profile` : "Company Profile";
+    const text = company.name ? `Check out ${company.name} on Textile Network` : undefined;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url, text });
+        toast({ title: "Shared", description: "Thanks for sharing!" });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link copied", description: "Profile link copied to clipboard." });
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link copied", description: "Profile link copied to clipboard." });
+      } catch {
+        toast({ title: "Could not share", description: "Please copy the link from your browser.", variant: "destructive" });
+      }
     }
   };
 
@@ -401,7 +425,13 @@ export default function CompanyDetailClient({ company }) {
 
             {/* Action Buttons */}
             <div className="flex gap-2 flex-wrap sm:flex-nowrap flex-shrink-0 items-center w-full sm:w-auto" suppressHydrationWarning>
-              <button className="p-2 border border-gray-300 bg-white text-gray-600 hover:bg-brand-600 hover:text-white hover:border-brand-600 rounded-lg transition-colors">
+              <button
+                type="button"
+                onClick={handleShare}
+                className="p-2 border border-gray-300 bg-white text-gray-600 hover:bg-brand-600 hover:text-white hover:border-brand-600 rounded-lg transition-colors"
+                title="Share"
+                aria-label="Share company profile"
+              >
                 <Share2 size={20} />
               </button>
               {isOwnCompany ? (
