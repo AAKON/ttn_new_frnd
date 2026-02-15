@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiRequest } from "@/utils/api";
 import Link from "next/link";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { getMyFavsCompanies, toggleFavCompany } from "@/services/company";
 
-export default function CompanyListingPage() {
+function CompanyListingContent() {
   const searchParams = useSearchParams();
   const [companies, setCompanies] = useState([]);
   const [page, setPage] = useState(1);
@@ -1449,5 +1449,13 @@ export default function CompanyListingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CompanyListingPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-16"><p className="text-gray-500">Loading...</p></div>}>
+      <CompanyListingContent />
+    </Suspense>
   );
 }
