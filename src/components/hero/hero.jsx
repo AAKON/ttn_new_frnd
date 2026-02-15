@@ -17,6 +17,8 @@ const Hero = ({ categories = [], locations = [] }) => {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showMobileCategoryDropdown, setShowMobileCategoryDropdown] = useState(false);
   const [showMobileLocationDropdown, setShowMobileLocationDropdown] = useState(false);
+  const [categoryDropdownSearch, setCategoryDropdownSearch] = useState("");
+  const [locationDropdownSearch, setLocationDropdownSearch] = useState("");
 
   const categoryRef = useRef(null);
   const locationRef = useRef(null);
@@ -50,6 +52,24 @@ const Hero = ({ categories = [], locations = [] }) => {
     ? safeLocations.find((l) => String(l.id) === String(location))?.name || "Anywhere"
     : "Anywhere";
 
+  const filteredCategories = safeCategories.filter(
+    (c) => !categoryDropdownSearch.trim() || (c.name || "").toLowerCase().includes(categoryDropdownSearch.toLowerCase())
+  );
+  const filteredLocations = safeLocations.filter(
+    (l) => !locationDropdownSearch.trim() || (l.name || "").toLowerCase().includes(locationDropdownSearch.toLowerCase())
+  );
+
+  const closeCategoryDropdown = () => {
+    setShowCategoryDropdown(false);
+    setShowMobileCategoryDropdown(false);
+    setCategoryDropdownSearch("");
+  };
+  const closeLocationDropdown = () => {
+    setShowLocationDropdown(false);
+    setShowMobileLocationDropdown(false);
+    setLocationDropdownSearch("");
+  };
+
   return (
     <section
       className="relative py-16 md:py-24 bg-cover bg-center bg-no-repeat"
@@ -70,7 +90,7 @@ const Hero = ({ categories = [], locations = [] }) => {
             {/* Category Dropdown */}
             <div className="shrink-0 relative border-r border-gray-300 pr-3" ref={categoryRef}>
               <button
-                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); if (showCategoryDropdown) setCategoryDropdownSearch(""); }}
                 className="!bg-transparent !p-0 !pl-2 flex items-center gap-1.5 !text-gray-700"
               >
                 <span className="text-sm font-medium truncate max-w-[140px]">
@@ -84,22 +104,39 @@ const Hero = ({ categories = [], locations = [] }) => {
                 </svg>
               </button>
               {showCategoryDropdown && (
-                <div className="absolute top-full left-0 mt-3 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                  <div
-                    onClick={() => { setCategory(""); setShowCategoryDropdown(false); }}
-                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!category ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                  >
-                    All Categories
-                  </div>
-                  {safeCategories.map((cat) => (
-                    <div
-                      key={cat.id}
-                      onClick={() => { setCategory(String(cat.id)); setShowCategoryDropdown(false); }}
-                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${String(category) === String(cat.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                    >
-                      {cat.name}
+                <div className="absolute top-full left-0 mt-3 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                  <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={categoryDropdownSearch}
+                        onChange={(e) => setCategoryDropdownSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        placeholder="Search..."
+                        className="w-full text-sm text-gray-600 bg-transparent border-none outline-none"
+                      />
                     </div>
-                  ))}
+                  </div>
+                  <div className="overflow-y-auto max-h-48">
+                    <div
+                      onClick={() => { setCategory(""); closeCategoryDropdown(); }}
+                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!category ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                    >
+                      All Categories
+                    </div>
+                    {filteredCategories.map((cat) => (
+                      <div
+                        key={cat.id}
+                        onClick={() => { setCategory(String(cat.id)); closeCategoryDropdown(); }}
+                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${String(category) === String(cat.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                      >
+                        {cat.name}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -122,7 +159,7 @@ const Hero = ({ categories = [], locations = [] }) => {
             {/* Location Dropdown */}
             <div className="hidden md:block shrink-0 w-[150px] relative" ref={locationRef}>
               <button
-                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                onClick={() => { setShowLocationDropdown(!showLocationDropdown); if (showLocationDropdown) setLocationDropdownSearch(""); }}
                 className="!bg-transparent !border !border-brand-300 !rounded-lg !py-2 !px-3 !w-full flex items-center gap-1.5 !text-gray-700"
               >
                 <svg className="w-5 h-5 text-brand-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -141,25 +178,42 @@ const Hero = ({ categories = [], locations = [] }) => {
                 </svg>
               </button>
               {showLocationDropdown && (
-                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                  <div
-                    onClick={() => { setLocation(""); setShowLocationDropdown(false); }}
-                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!location ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                  >
-                    Anywhere
-                  </div>
-                  {safeLocations.map((loc) => (
-                    <div
-                      key={loc.id}
-                      onClick={() => { setLocation(String(loc.id)); setShowLocationDropdown(false); }}
-                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${String(location) === String(loc.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                    >
-                      {loc.flag_path && (
-                        <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
-                      )}
-                      <span className="truncate">{loc.name}</span>
+                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                  <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={locationDropdownSearch}
+                        onChange={(e) => setLocationDropdownSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        placeholder="Search..."
+                        className="w-full text-sm text-gray-600 bg-transparent border-none outline-none"
+                      />
                     </div>
-                  ))}
+                  </div>
+                  <div className="overflow-y-auto max-h-48">
+                    <div
+                      onClick={() => { setLocation(""); closeLocationDropdown(); }}
+                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!location ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                    >
+                      Anywhere
+                    </div>
+                    {filteredLocations.map((loc) => (
+                      <div
+                        key={loc.id}
+                        onClick={() => { setLocation(String(loc.id)); closeLocationDropdown(); }}
+                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${String(location) === String(loc.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                      >
+                        {loc.flag_path && (
+                          <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
+                        )}
+                        <span className="truncate">{loc.name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -194,7 +248,7 @@ const Hero = ({ categories = [], locations = [] }) => {
             <div className="flex items-center gap-3">
               <div className="flex-1 relative min-w-0" ref={mobileCategoryRef}>
                 <button
-                  onClick={() => setShowMobileCategoryDropdown(!showMobileCategoryDropdown)}
+                  onClick={() => { setShowMobileCategoryDropdown(!showMobileCategoryDropdown); if (showMobileCategoryDropdown) setCategoryDropdownSearch(""); }}
                   className="!bg-transparent !border !border-gray-200 !rounded-lg !py-2 !px-2 !w-full flex items-center gap-1.5 !text-gray-700 overflow-hidden"
                 >
                   <span className="text-sm font-medium truncate flex-1 text-left">
@@ -208,29 +262,46 @@ const Hero = ({ categories = [], locations = [] }) => {
                   </svg>
                 </button>
                 {showMobileCategoryDropdown && (
-                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                    <div
-                      onClick={() => { setCategory(""); setShowMobileCategoryDropdown(false); }}
-                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!category ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                    >
-                      All Categories
-                    </div>
-                    {safeCategories.map((cat) => (
-                      <div
-                        key={cat.id}
-                        onClick={() => { setCategory(String(cat.id)); setShowMobileCategoryDropdown(false); }}
-                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${String(category) === String(cat.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                      >
-                        {cat.name}
+                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                          type="text"
+                          value={categoryDropdownSearch}
+                          onChange={(e) => setCategoryDropdownSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          placeholder="Search..."
+                          className="w-full text-sm text-gray-600 bg-transparent border-none outline-none"
+                        />
                       </div>
-                    ))}
+                    </div>
+                    <div className="overflow-y-auto max-h-48">
+                      <div
+                        onClick={() => { setCategory(""); closeCategoryDropdown(); }}
+                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!category ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                      >
+                        All Categories
+                      </div>
+                      {filteredCategories.map((cat) => (
+                        <div
+                          key={cat.id}
+                          onClick={() => { setCategory(String(cat.id)); closeCategoryDropdown(); }}
+                          className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${String(category) === String(cat.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                        >
+                          {cat.name}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
               <div className="flex-1 relative min-w-0" ref={mobileLocationRef}>
                 <button
-                  onClick={() => setShowMobileLocationDropdown(!showMobileLocationDropdown)}
+                  onClick={() => { setShowMobileLocationDropdown(!showMobileLocationDropdown); if (showMobileLocationDropdown) setLocationDropdownSearch(""); }}
                   className="!bg-transparent !border !border-brand-300 !rounded-lg !py-2 !px-2 !w-full flex items-center gap-1.5 !text-gray-700 overflow-hidden"
                 >
                   <svg className="w-4 h-4 text-brand-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -249,25 +320,42 @@ const Hero = ({ categories = [], locations = [] }) => {
                   </svg>
                 </button>
                 {showMobileLocationDropdown && (
-                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                    <div
-                      onClick={() => { setLocation(""); setShowMobileLocationDropdown(false); }}
-                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!location ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                    >
-                      Anywhere
-                    </div>
-                    {safeLocations.map((loc) => (
-                      <div
-                        key={loc.id}
-                        onClick={() => { setLocation(String(loc.id)); setShowMobileLocationDropdown(false); }}
-                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${String(location) === String(loc.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                      >
-                        {loc.flag_path && (
-                          <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
-                        )}
-                        <span className="truncate">{loc.name}</span>
+                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                          type="text"
+                          value={locationDropdownSearch}
+                          onChange={(e) => setLocationDropdownSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          placeholder="Search..."
+                          className="w-full text-sm text-gray-600 bg-transparent border-none outline-none"
+                        />
                       </div>
-                    ))}
+                    </div>
+                    <div className="overflow-y-auto max-h-48">
+                      <div
+                        onClick={() => { setLocation(""); closeLocationDropdown(); }}
+                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!location ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                      >
+                        Anywhere
+                      </div>
+                      {filteredLocations.map((loc) => (
+                        <div
+                          key={loc.id}
+                          onClick={() => { setLocation(String(loc.id)); closeLocationDropdown(); }}
+                          className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${String(location) === String(loc.id) ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
+                        >
+                          {loc.flag_path && (
+                            <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
+                          )}
+                          <span className="truncate">{loc.name}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

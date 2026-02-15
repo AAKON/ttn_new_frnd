@@ -46,9 +46,16 @@ export async function getDataPreOverview() {
 
 export async function getCompanyDetails(slug) {
   const endpoint = `company/${slug}`;
-  const options = { method: "GET", next: { revalidate: 60 }, cache: "force-cache" };
+  const options = { method: "GET", cache: "no-store" };
   const result = await apiRequest(endpoint, options, null, null);
   return result?.data;
+}
+
+/** Public: submit contact request for a company (no auth). */
+export async function submitCompanyContactRequest(slug, data) {
+  const endpoint = `company/${slug}/contact-request`;
+  const result = await apiRequest(endpoint, { method: "POST", body: data }, null, null);
+  return result;
 }
 
 export async function getCompanyBasic(slug) {

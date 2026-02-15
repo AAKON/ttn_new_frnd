@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
-import { getMyCompanies, getMyFavsCompanies, toggleFavCompany } from "@/services/company";
+import { getMyCompanies, getMyFavsCompanies, toggleFavCompany, submitCompanyContactRequest } from "@/services/company";
 import { submitCompanyClaim, submitCompanyReport } from "@/services/contact/submitForm";
 import { useToast } from "@/hooks/use-toast";
-import { Share2, Bookmark, ChevronLeft, ChevronRight, AlertCircle, Download, Grid3x3, Building2, MapPin, Eye, Edit2 } from "lucide-react";
+import { Share2, Bookmark, ChevronLeft, ChevronRight, AlertCircle, Download, Grid3x3, Building2, MapPin, Eye, Edit2, X } from "lucide-react";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   ssr: false,
@@ -43,6 +43,9 @@ export default function CompanyDetailClient({ company }) {
   const [reportSaving, setReportSaving] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [contactRequestOpen, setContactRequestOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ email: "", subject: "", message: "" });
+  const [contactSaving, setContactSaving] = useState(false);
 
   // Use refs to avoid closure issues
   const dragStartRef = useRef(0);
@@ -307,6 +310,35 @@ export default function CompanyDetailClient({ company }) {
   const handleDownloadProfile = () => {
     if (typeof window !== "undefined") {
       window.print();
+    }
+  };
+
+  const handleContactRequestSubmit = async (e) => {
+    e.preventDefault();
+    if (contactSaving) return;
+    if (!contactForm.email?.trim()) {
+      toast({ title: "Error", description: "Please enter your email.", variant: "destructive" });
+      return;
+    }
+    setContactSaving(true);
+    try {
+      const result = await submitCompanyContactRequest(company.slug, {
+        email: contactForm.email.trim(),
+        subject: contactForm.subject.trim() || undefined,
+        message: contactForm.message.trim() || undefined,
+      });
+      if (result?.status === false) {
+        toast({ title: "Error", description: result?.message || "Failed to send message.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Success", description: "Your message has been sent." });
+      setContactForm({ email: "", subject: "", message: "" });
+      setContactRequestOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: err?.message || "Failed to send message.", variant: "destructive" });
+    } finally {
+      setContactSaving(false);
     }
   };
 
@@ -817,27 +849,33 @@ export default function CompanyDetailClient({ company }) {
                   <h3 className="text-base font-semibold text-gray-900 mb-6">Certificates</h3>
                   {(company.certificates || []).length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {company.certificates.map((cert) => (
-                        <div
-                          key={cert.id}
-                          className="border rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow"
-                        >
-                          {cert.image_url ? (
-                            <img
-                              src={cert.image_url}
-                              alt={cert.name}
-                              className="w-16 h-16 object-contain mb-3"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mb-3">
-                              <svg className="w-8 h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                              </svg>
-                            </div>
-                          )}
-                          <p className="text-sm font-medium text-gray-900">{cert.name}</p>
-                        </div>
-                      ))}
+                      {company.certificates.map((cert) => {
+                        const imageUrl = cert.image_url || cert.image;
+                        const fullImageUrl = imageUrl && imageUrl.startsWith("/")
+                          ? `${process.env.NEXT_PUBLIC_API_URL || ""}${imageUrl}`
+                          : imageUrl;
+                        return (
+                          <div
+                            key={cert.id}
+                            className="border rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow"
+                          >
+                            {fullImageUrl ? (
+                              <img
+                                src={fullImageUrl}
+                                alt={cert.name || ""}
+                                className="w-20 h-20 object-contain mb-3"
+                              />
+                            ) : (
+                              <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mb-3">
+                                <svg className="w-8 h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                </svg>
+                              </div>
+                            )}
+                            <p className="text-sm font-medium text-gray-900">{cert.name}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-gray-500 text-center py-8">No certificates added yet</p>
@@ -1004,7 +1042,11 @@ export default function CompanyDetailClient({ company }) {
               </div>
 
               {/* Contact Request Button */}
-              <button className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 sm:py-3 rounded-md mb-4 sm:mb-6 transition-colors text-sm sm:text-base">
+              <button
+                type="button"
+                onClick={() => setContactRequestOpen(true)}
+                className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 sm:py-3 rounded-md mb-4 sm:mb-6 transition-colors text-sm sm:text-base"
+              >
                 Contact Request
               </button>
 
@@ -1059,6 +1101,66 @@ export default function CompanyDetailClient({ company }) {
           </div>
         </div>
       </div>
+
+      {/* Contact Request / Email us Modal */}
+      {contactRequestOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setContactRequestOpen(false)} aria-hidden="true" />
+          <div className="relative bg-white rounded-lg shadow-lg w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900">Email us</h3>
+              <button
+                type="button"
+                onClick={() => setContactRequestOpen(false)}
+                className="p-1 rounded hover:bg-gray-100 text-gray-500 bg-transparent"
+                aria-label="Close"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleContactRequestSubmit} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Enter your email</label>
+                <input
+                  type="email"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="Enter your email"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={contactForm.subject}
+                  onChange={(e) => setContactForm((f) => ({ ...f, subject: e.target.value }))}
+                  placeholder="Enter subject"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Message</label>
+                <textarea
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm((f) => ({ ...f, message: e.target.value }))}
+                  placeholder="Enter your message..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={contactSaving}
+                className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50"
+              >
+                {contactSaving ? "Sending..." : "Send"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

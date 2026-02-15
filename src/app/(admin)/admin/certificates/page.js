@@ -47,7 +47,7 @@ export default function CertificatesPage() {
   const openEdit = (item) => {
     setEditing(item);
     setForm({ name: item.name || "", image: null });
-    setPreview(item.image || null);
+    setPreview(item.image_url || item.image || null);
     setModalOpen(true);
   };
 
@@ -90,14 +90,16 @@ export default function CertificatesPage() {
     {
       key: "image",
       label: "Image",
-      render: (row) =>
-        row.image ? (
-          <img src={row.image} alt={row.name} className="w-10 h-10 rounded object-cover" />
+      render: (row) => {
+        const imageUrl = row.image_url || row.image;
+        return imageUrl ? (
+          <img src={imageUrl} alt={row.name || ""} className="w-10 h-10 rounded object-cover" />
         ) : (
           <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
             <ImageIcon size={16} className="text-gray-400" />
           </div>
-        ),
+        );
+      },
     },
     { key: "name", label: "Name" },
     {

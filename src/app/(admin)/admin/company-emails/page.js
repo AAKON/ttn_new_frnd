@@ -14,32 +14,27 @@ export default function CompanyEmailsPage() {
 
   const load = (p = page) => {
     setLoading(true);
-    getCompanyEmails(p, 10).then((d) => {
-      setItems(d?.data || d || []);
-      if (d?.current_page) setPagination({ current_page: d.current_page, last_page: d.last_page, total: d.total });
-    }).finally(() => setLoading(false));
+    getCompanyEmails(p, 10)
+      .then((res) => {
+        // API returns { data: array, pagination } or sometimes the array at top level
+        const raw = res?.data ?? res;
+        const list = Array.isArray(raw) ? raw : (raw?.data ?? []);
+        setItems(Array.isArray(list) ? list : []);
+        const pag = res?.pagination ?? raw?.pagination ?? (res?.current_page != null ? { current_page: res.current_page, last_page: res.last_page, total: res.total, per_page: res.per_page } : null);
+        setPagination(pag);
+      })
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [page]);
 
-  const handleStatusChange = async (id, lead_status) => {
-    const result = await updateCompanyEmail(id, { lead_status }, toast);
-    if (result?.status) load();
-  };
-
   const columns = [
     { key: "id", label: "ID", width: "60px" },
-    { key: "name", label: "Sender" },
     { key: "email", label: "Email" },
-    { key: "company", label: "Company", render: (row) => row.company?.name || row.company_name || "-" },
-    { key: "message", label: "Message", render: (row) => <span className="line-clamp-2 text-xs">{row.message}</span> },
-    { key: "lead_status", label: "Status", render: (row) => (
-      <select value={row.lead_status || "new"} onChange={(e) => handleStatusChange(row.id, e.target.value)} className="text-xs border rounded px-2 py-1">
-        <option value="new">New</option>
-        <option value="contacted">Contacted</option>
-        <option value="closed">Closed</option>
-      </select>
-    )},
+    { key: "subject", label: "Subject", render: (row) => <span className="line-clamp-1 text-xs">{row.subject || "-"}</span> },
+    { key: "company", label: "Company", render: (row) => row.company?.name || "-" },
+    { key: "message", label: "Message", render: (row) => <span className="line-clamp-2 text-xs">{row.message || "-"}</span> },
     { key: "created_at", label: "Date", render: (row) => row.created_at ? new Date(row.created_at).toLocaleDateString() : "-" },
     { key: "actions", label: "", width: "60px", render: (row) => (
       <DeleteDialog onConfirm={() => { deleteCompanyEmail(row.id, toast).then(() => load()); }} />

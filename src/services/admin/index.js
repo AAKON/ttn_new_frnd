@@ -318,7 +318,8 @@ export async function deleteCompanyReport(id, toast) {
 // Company Emails
 export async function getCompanyEmails(page = 1, perPage = 10) {
   const result = await adminRequest(`company-emails?page=${page}&perPage=${perPage}`, { method: "GET", cache: "no-store" });
-  return result?.data;
+  // Backend returns { status, message, data: { data: items[], pagination } }
+  return result?.data ?? result;
 }
 
 export async function updateCompanyEmail(id, data, toast) {
