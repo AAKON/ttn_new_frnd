@@ -6,6 +6,7 @@ import { getSourcingFilterOptions } from "@/services/sourcing";
 import { getMyFavsSourcingProposals, toggleFavsSourcingProposal } from "@/services/company";
 import Link from "next/link";
 import InfiniteScroll from "react-infinite-scroll-component";
+import RotatingHeroWord from "@/components/shared/rotating-hero-word";
 
 function ContactModal({ proposal, onClose }) {
   if (!proposal) return null;
@@ -155,6 +156,8 @@ export default function SourcingListingPage() {
   const [showSidebarCategoryDropdown, setShowSidebarCategoryDropdown] = useState(false);
   const [categoryDropdownSearch, setCategoryDropdownSearch] = useState("");
   const [locationDropdownSearch, setLocationDropdownSearch] = useState("");
+  const [filterCountrySearch, setFilterCountrySearch] = useState("");
+  const [filterCategorySearch, setFilterCategorySearch] = useState("");
 
   const locationDropdownRef = useRef(null);
   const mobileLocationDropdownRef = useRef(null);
@@ -305,6 +308,12 @@ export default function SourcingListingPage() {
   const filteredHeroLocations = (filterOptions.locations || []).filter(
     (l) => !locationDropdownSearch.trim() || (l.name || "").toLowerCase().includes(locationDropdownSearch.toLowerCase())
   );
+  const filteredFilterLocations = (filterOptions.locations || []).filter(
+    (l) => !filterCountrySearch.trim() || (l.name || "").toLowerCase().includes(filterCountrySearch.toLowerCase())
+  );
+  const filteredFilterCategories = (filterOptions.categories || []).filter(
+    (c) => !filterCategorySearch.trim() || (c.name || "").toLowerCase().includes(filterCategorySearch.toLowerCase())
+  );
   const closeHeroCategoryDropdown = () => {
     setShowCategoryDropdown(false);
     setShowMobileCategoryDropdown(false);
@@ -331,7 +340,7 @@ export default function SourcingListingPage() {
       <div className="bg-gradient-to-b from-gray-50 to-white py-12 sm:py-16">
         <div className="container mx-auto text-center px-4">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
-            Sourcing <span className="text-brand-600">Proposals</span>
+            Find Your <RotatingHeroWord words={["Buying", "Inquiry"]} /> Proposal
           </h1>
           <p className="text-gray-500 mb-8 max-w-xl mx-auto">
             Browse sourcing proposals from buyers and suppliers worldwide
@@ -622,14 +631,22 @@ export default function SourcingListingPage() {
                         <svg className={`w-3.5 h-3.5 text-gray-500 flex-shrink-0 transition-transform ${showCountryDropdown ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </button>
                       {showCountryDropdown && (
-                        <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                          <div onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Countries</div>
-                          {filterOptions.locations.map((loc) => (
-                            <div key={loc.id} onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>
-                              {loc.flag_path && <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />}
-                              <span className="truncate">{loc.name}</span>
+                        <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                              <input type="text" value={filterCountrySearch} onChange={(e) => setFilterCountrySearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
                             </div>
-                          ))}
+                          </div>
+                          <div className="overflow-y-auto max-h-48">
+                            <div onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Countries</div>
+                            {filteredFilterLocations.map((loc) => (
+                              <div key={loc.id} onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>
+                                {loc.flag_path && <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />}
+                                <span className="truncate">{loc.name}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -647,11 +664,19 @@ export default function SourcingListingPage() {
                         <svg className={`w-3.5 h-3.5 text-gray-500 flex-shrink-0 transition-transform ${showSidebarCategoryDropdown ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </button>
                       {showSidebarCategoryDropdown && (
-                        <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                          <div onClick={() => { handleFilterChange("categoryId", null); setShowSidebarCategoryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.categoryId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Categories</div>
-                          {filterOptions.categories.map((cat) => (
-                            <div key={cat.id} onClick={() => { handleFilterChange("categoryId", cat.id); setShowSidebarCategoryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${filters.categoryId === cat.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>{cat.name}</div>
-                          ))}
+                        <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                              <input type="text" value={filterCategorySearch} onChange={(e) => setFilterCategorySearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                            </div>
+                          </div>
+                          <div className="overflow-y-auto max-h-48">
+                            <div onClick={() => { handleFilterChange("categoryId", null); setShowSidebarCategoryDropdown(false); setFilterCategorySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.categoryId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Categories</div>
+                            {filteredFilterCategories.map((cat) => (
+                              <div key={cat.id} onClick={() => { handleFilterChange("categoryId", cat.id); setShowSidebarCategoryDropdown(false); setFilterCategorySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${filters.categoryId === cat.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>{cat.name}</div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -686,14 +711,22 @@ export default function SourcingListingPage() {
                       <svg className={`w-3.5 h-3.5 text-gray-500 flex-shrink-0 transition-transform ${showCountryDropdown ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {showCountryDropdown && (
-                      <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                        <div onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Countries</div>
-                        {filterOptions.locations.map((loc) => (
-                          <div key={loc.id} onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>
-                            {loc.flag_path && <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />}
-                            <span className="truncate">{loc.name}</span>
+                      <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                        <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input type="text" value={filterCountrySearch} onChange={(e) => setFilterCountrySearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
                           </div>
-                        ))}
+                        </div>
+                        <div className="overflow-y-auto max-h-48">
+                          <div onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Countries</div>
+                          {filteredFilterLocations.map((loc) => (
+                            <div key={loc.id} onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>
+                              {loc.flag_path && <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />}
+                              <span className="truncate">{loc.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -712,11 +745,19 @@ export default function SourcingListingPage() {
                       <svg className={`w-3.5 h-3.5 text-gray-500 flex-shrink-0 transition-transform ${showSidebarCategoryDropdown ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {showSidebarCategoryDropdown && (
-                      <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                        <div onClick={() => { handleFilterChange("categoryId", null); setShowSidebarCategoryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.categoryId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Categories</div>
-                        {filterOptions.categories.map((cat) => (
-                          <div key={cat.id} onClick={() => { handleFilterChange("categoryId", cat.id); setShowSidebarCategoryDropdown(false); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${filters.categoryId === cat.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>{cat.name}</div>
-                        ))}
+                      <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                        <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input type="text" value={filterCategorySearch} onChange={(e) => setFilterCategorySearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                          </div>
+                        </div>
+                        <div className="overflow-y-auto max-h-48">
+                          <div onClick={() => { handleFilterChange("categoryId", null); setShowSidebarCategoryDropdown(false); setFilterCategorySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.categoryId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Categories</div>
+                          {filteredFilterCategories.map((cat) => (
+                            <div key={cat.id} onClick={() => { handleFilterChange("categoryId", cat.id); setShowSidebarCategoryDropdown(false); setFilterCategorySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 truncate ${filters.categoryId === cat.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>{cat.name}</div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

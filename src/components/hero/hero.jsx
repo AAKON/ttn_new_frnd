@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Container } from "@/components/shared";
+import RotatingHeroWord from "@/components/shared/rotating-hero-word";
 
 const Hero = ({ categories = [], locations = [] }) => {
   const router = useRouter();
@@ -81,7 +82,7 @@ const Hero = ({ categories = [], locations = [] }) => {
       <Container>
         <div className="max-w-5xl mx-auto text-center">
           <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight mb-8">
-            Find Your <span className="text-brand-600">Apparel</span> Business
+            Find Your <RotatingHeroWord /> Business
             Needs
           </h1>
 

@@ -6,6 +6,7 @@ import { apiRequest } from "@/utils/api";
 import Link from "next/link";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { getMyFavsCompanies, toggleFavCompany } from "@/services/company";
+import RotatingHeroWord from "@/components/shared/rotating-hero-word";
 
 function CompanyListingContent() {
   const searchParams = useSearchParams();
@@ -48,6 +49,11 @@ function CompanyListingContent() {
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [categoryDropdownSearch, setCategoryDropdownSearch] = useState("");
   const [locationDropdownSearch, setLocationDropdownSearch] = useState("");
+  const [filterCountrySearch, setFilterCountrySearch] = useState("");
+  const [filterCategorySearch, setFilterCategorySearch] = useState("");
+  const [filterTypesSearch, setFilterTypesSearch] = useState("");
+  const [filterCertSearch, setFilterCertSearch] = useState("");
+  const [filterSizeSearch, setFilterSizeSearch] = useState("");
   const locationDropdownRef = useRef(null);
   const mobileLocationDropdownRef = useRef(null);
   const categoryDropdownRef = useRef(null);
@@ -271,6 +277,21 @@ function CompanyListingContent() {
   const filteredHeroLocations = (filterOptions.locations || []).filter(
     (l) => !locationDropdownSearch.trim() || (l.name || "").toLowerCase().includes(locationDropdownSearch.toLowerCase())
   );
+  const filteredFilterLocations = (filterOptions.locations || []).filter(
+    (l) => !filterCountrySearch.trim() || (l.name || "").toLowerCase().includes(filterCountrySearch.toLowerCase())
+  );
+  const filteredFilterCategories = (filterOptions.businessCategories || []).filter(
+    (c) => !filterCategorySearch.trim() || (c.name || "").toLowerCase().includes(filterCategorySearch.toLowerCase())
+  );
+  const filteredFilterTypes = (filterOptions.businessTypes || []).filter(
+    (t) => !filterTypesSearch.trim() || (t.name || "").toLowerCase().includes(filterTypesSearch.toLowerCase())
+  );
+  const filteredFilterCertificates = (filterOptions.certificates || []).filter(
+    (c) => !filterCertSearch.trim() || (c.name || "").toLowerCase().includes(filterCertSearch.toLowerCase())
+  );
+  const filteredFilterManpower = (filterOptions.manpowerRanges || []).filter(
+    (r) => !filterSizeSearch.trim() || String(r.name || r).toLowerCase().includes(filterSizeSearch.toLowerCase())
+  );
   const closeHeroCategoryDropdown = () => {
     setShowCategoryDropdown(false);
     setShowMobileCategoryDropdown(false);
@@ -300,7 +321,7 @@ function CompanyListingContent() {
       <div className="bg-gradient-to-b from-gray-50 to-white py-12 sm:py-16">
         <div className="container mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-8">
-            Find Your <span className="text-brand-600">Apparel</span> Business
+            Find Your <RotatingHeroWord /> Business
             Needs
           </h1>
 
@@ -707,25 +728,22 @@ function CompanyListingContent() {
                         </svg>
                       </button>
                       {showCountryDropdown && (
-                        <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                          <div
-                            onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); }}
-                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                          >
-                            All Countries
-                          </div>
-                          {filterOptions.locations.map((loc) => (
-                            <div
-                              key={loc.id}
-                              onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); }}
-                              className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                            >
-                              {loc.flag_path && (
-                                <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
-                              )}
-                              <span className="truncate">{loc.name}</span>
+                        <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                              <input type="text" value={filterCountrySearch} onChange={(e) => setFilterCountrySearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
                             </div>
-                          ))}
+                          </div>
+                          <div className="overflow-y-auto max-h-48">
+                            <div onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Countries</div>
+                            {filteredFilterLocations.map((loc) => (
+                              <div key={loc.id} onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>
+                                {loc.flag_path && <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />}
+                                <span className="truncate">{loc.name}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -742,25 +760,19 @@ function CompanyListingContent() {
                     <ChevronIcon open={openSections.category} />
                   </button>
                   {openSections.category && (
-                    <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                      {filterOptions.businessCategories.map((cat) => (
-                        <label
-                          key={cat.id}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={filters.businessCategoryIds.includes(cat.id)}
-                            onChange={() =>
-                              toggleArrayFilter("businessCategoryIds", cat.id)
-                            }
-                            className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          <span className="text-sm text-gray-600">
-                            {cat.name}
-                          </span>
-                        </label>
-                      ))}
+                    <div className="px-5 pb-5">
+                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <input type="text" value={filterCategorySearch} onChange={(e) => setFilterCategorySearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-2.5">
+                        {filteredFilterCategories.map((cat) => (
+                          <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={filters.businessCategoryIds.includes(cat.id)} onChange={() => toggleArrayFilter("businessCategoryIds", cat.id)} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span className="text-sm text-gray-600">{cat.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -775,25 +787,19 @@ function CompanyListingContent() {
                     <ChevronIcon open={openSections.types} />
                   </button>
                   {openSections.types && (
-                    <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                      {filterOptions.businessTypes.map((type) => (
-                        <label
-                          key={type.id}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={filters.businessTypeIds.includes(type.id)}
-                            onChange={() =>
-                              toggleArrayFilter("businessTypeIds", type.id)
-                            }
-                            className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          <span className="text-sm text-gray-600">
-                            {type.name}
-                          </span>
-                        </label>
-                      ))}
+                    <div className="px-5 pb-5">
+                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <input type="text" value={filterTypesSearch} onChange={(e) => setFilterTypesSearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-2.5">
+                        {filteredFilterTypes.map((type) => (
+                          <label key={type.id} className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={filters.businessTypeIds.includes(type.id)} onChange={() => toggleArrayFilter("businessTypeIds", type.id)} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span className="text-sm text-gray-600">{type.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -808,25 +814,19 @@ function CompanyListingContent() {
                     <ChevronIcon open={openSections.certificate} />
                   </button>
                   {openSections.certificate && (
-                    <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                      {filterOptions.certificates.map((cert) => (
-                        <label
-                          key={cert.id}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={filters.certificateIds.includes(cert.id)}
-                            onChange={() =>
-                              toggleArrayFilter("certificateIds", cert.id)
-                            }
-                            className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          <span className="text-sm text-gray-600">
-                            {cert.name}
-                          </span>
-                        </label>
-                      ))}
+                    <div className="px-5 pb-5">
+                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <input type="text" value={filterCertSearch} onChange={(e) => setFilterCertSearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-2.5">
+                        {filteredFilterCertificates.map((cert) => (
+                          <label key={cert.id} className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={filters.certificateIds.includes(cert.id)} onChange={() => toggleArrayFilter("certificateIds", cert.id)} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span className="text-sm text-gray-600">{cert.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -841,25 +841,19 @@ function CompanyListingContent() {
                     <ChevronIcon open={openSections.size} />
                   </button>
                   {openSections.size && (
-                    <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                      {filterOptions.manpowerRanges.map((range) => (
-                        <label
-                          key={range.id || range}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={filters.manpower.includes(range.id || range)}
-                            onChange={() =>
-                              toggleArrayFilter("manpower", range.id || range)
-                            }
-                            className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          <span className="text-sm text-gray-600">
-                            {range.name || range}
-                          </span>
-                        </label>
-                      ))}
+                    <div className="px-5 pb-5">
+                      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <input type="text" value={filterSizeSearch} onChange={(e) => setFilterSizeSearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-2.5">
+                        {filteredFilterManpower.map((range) => (
+                          <label key={range.id || range} className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={filters.manpower.includes(range.id || range)} onChange={() => toggleArrayFilter("manpower", range.id || range)} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span className="text-sm text-gray-600">{range.name || range}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -922,25 +916,22 @@ function CompanyListingContent() {
                       </svg>
                     </button>
                     {showCountryDropdown && (
-                      <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                        <div
-                          onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); }}
-                          className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                        >
-                          All Countries
-                        </div>
-                        {filterOptions.locations.map((loc) => (
-                          <div
-                            key={loc.id}
-                            onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); }}
-                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}
-                          >
-                            {loc.flag_path && (
-                              <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
-                            )}
-                            <span className="truncate">{loc.name}</span>
+                      <div className="absolute left-5 right-5 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+                        <div className="p-2 border-b border-gray-100 sticky top-0 bg-white shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200">
+                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input type="text" value={filterCountrySearch} onChange={(e) => setFilterCountrySearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
                           </div>
-                        ))}
+                        </div>
+                        <div className="overflow-y-auto max-h-48">
+                          <div onClick={() => { handleFilterChange("locationId", null); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${!filters.locationId ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>All Countries</div>
+                          {filteredFilterLocations.map((loc) => (
+                            <div key={loc.id} onClick={() => { handleFilterChange("locationId", loc.id); setShowCountryDropdown(false); setFilterCountrySearch(""); }} className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${filters.locationId === loc.id ? "bg-brand-50 text-brand-600 font-medium" : "text-gray-700"}`}>
+                              {loc.flag_path && <img src={loc.flag_path} alt="" className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />}
+                              <span className="truncate">{loc.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -957,8 +948,13 @@ function CompanyListingContent() {
                   <ChevronIcon open={openSections.category} />
                 </button>
                 {openSections.category && (
-                  <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                    {filterOptions.businessCategories.map((cat) => (
+                  <div className="px-5 pb-5">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      <input type="text" value={filterCategorySearch} onChange={(e) => setFilterCategorySearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-2.5">
+                    {filteredFilterCategories.map((cat) => (
                       <label
                         key={cat.id}
                         className="flex items-center gap-2 cursor-pointer"
@@ -976,6 +972,7 @@ function CompanyListingContent() {
                         </span>
                       </label>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -990,8 +987,13 @@ function CompanyListingContent() {
                   <ChevronIcon open={openSections.types} />
                 </button>
                 {openSections.types && (
-                  <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                    {filterOptions.businessTypes.map((type) => (
+                  <div className="px-5 pb-5">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      <input type="text" value={filterTypesSearch} onChange={(e) => setFilterTypesSearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-2.5">
+                    {filteredFilterTypes.map((type) => (
                       <label
                         key={type.id}
                         className="flex items-center gap-2 cursor-pointer"
@@ -1009,6 +1011,7 @@ function CompanyListingContent() {
                         </span>
                       </label>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1023,8 +1026,13 @@ function CompanyListingContent() {
                   <ChevronIcon open={openSections.certificate} />
                 </button>
                 {openSections.certificate && (
-                  <div className="px-5 pb-5 max-h-48 overflow-y-auto space-y-2.5">
-                    {filterOptions.certificates.map((cert) => (
+                  <div className="px-5 pb-5">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-200 mb-3">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      <input type="text" value={filterCertSearch} onChange={(e) => setFilterCertSearch(e.target.value)} placeholder="Search..." className="w-full text-sm text-gray-600 bg-transparent border-none outline-none" />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-2.5">
+                    {filteredFilterCertificates.map((cert) => (
                       <label
                         key={cert.id}
                         className="flex items-center gap-2 cursor-pointer"
@@ -1042,6 +1050,7 @@ function CompanyListingContent() {
                         </span>
                       </label>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
