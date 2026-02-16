@@ -86,7 +86,7 @@ export default function AuthNavbar({ showMobileNav, setShowMobileNav }) {
       <div className="relative">
         <button
           onClick={() => setShowAddDropdown(!showAddDropdown)}
-          className="h-10 px-5 text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white rounded-md hidden md:flex items-center justify-center gap-2 transition-colors"
+          className="h-9 md:h-10 px-3 md:px-5 text-xs md:text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white rounded-md flex items-center justify-center gap-1.5 md:gap-2 transition-colors"
         >
           <Plus size={18} />
           Add
@@ -112,7 +112,7 @@ export default function AuthNavbar({ showMobileNav, setShowMobileNav }) {
 
       {session ? (
         <div
-          className="relative hidden md:block"
+          className="relative"
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
@@ -151,12 +151,12 @@ export default function AuthNavbar({ showMobileNav, setShowMobileNav }) {
           )}
         </div>
       ) : (
-        <div className="hidden md:flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Link
             href="/login"
-            className={`h-10 px-5 text-sm font-semibold rounded-md flex items-center justify-center transition-colors ${
+            className={`h-9 md:h-10 px-3 md:px-5 text-xs md:text-sm font-semibold rounded-md flex items-center justify-center transition-colors ${
               isHome
-                ? "text-gray-900 bg-white hover:bg-gray-100"
+                ? "text-gray-900 bg-white border border-gray-100 hover:bg-gray-50"
                 : "text-gray-800 bg-white border border-gray-200 hover:bg-gray-50"
             }`}
           >
@@ -168,7 +168,7 @@ export default function AuthNavbar({ showMobileNav, setShowMobileNav }) {
       <button
         onClick={() => setShowMobileNav(!showMobileNav)}
         className={`p-2 lg:hidden bg-transparent ${
-          isHome ? "text-gray-200" : "text-gray-900"
+          isHome ? "text-gray-300" : "text-gray-900"
         }`}
       >
         {showMobileNav ? <X size={24} /> : <Menu size={24} />}

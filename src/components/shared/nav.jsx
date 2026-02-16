@@ -1,6 +1,8 @@
 "use client";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import AuthNavbar from "@/components/shared/authNavbar/authNavbar";
 
 const menuItems = [
@@ -20,6 +22,7 @@ const moreItems = [
 export const Nav = ({ showMobileNav, setShowMobileNav, isSticky }) => {
   const pathname = usePathname();
   const router = useRouter();
+  const [faviconError, setFaviconError] = useState(false);
 
   const handleNavigate = (path) => {
     router.push(path);
@@ -30,11 +33,34 @@ export const Nav = ({ showMobileNav, setShowMobileNav, isSticky }) => {
     <>
       <nav>
         <div className="container mx-auto">
-          <div className="flex justify-between items-center gap-12">
-            <div className="logo">
-              <Link href="/" className="font-bold text-xl">
+          <div className="flex justify-between items-center gap-4 lg:gap-12 px-4 lg:px-0">
+            <div className="logo flex items-center">
+              <Link href="/" className="flex items-center gap-2">
+                {/* Mobile: favicon on the left */}
+                <span className="flex lg:hidden">
+                  {faviconError ? (
+                    <Image
+                      src="/logo-sm.svg"
+                      alt="Textile Network"
+                      width={36}
+                      height={36}
+                      className="object-contain"
+                    />
+                  ) : (
+                    <Image
+                      src="/favicon.ico"
+                      alt="Textile Network"
+                      width={36}
+                      height={36}
+                      className="object-contain"
+                      unoptimized
+                      onError={() => setFaviconError(true)}
+                    />
+                  )}
+                </span>
+                {/* Desktop: text logo */}
                 <span
-                  className={`${
+                  className={`hidden lg:inline font-bold text-xl ${
                     pathname === "/" && !isSticky
                       ? "text-white"
                       : "text-brand-600"

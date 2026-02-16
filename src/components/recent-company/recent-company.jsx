@@ -1,8 +1,21 @@
+"use client";
+
+import { useRef } from "react";
 import { Container, Section } from "@/components/shared";
 import Link from "next/link";
 
 const RecentCompany = ({ data = [] }) => {
-  if (!data || data.length === 0) return null;
+  const listRef = useRef(null);
+  const safeData = Array.isArray(data) ? data : [];
+
+  const scrollBy = (direction) => {
+    const node = listRef.current;
+    if (!node) return;
+    const amount = node.clientWidth * 0.7;
+    node.scrollBy({ left: direction * amount, behavior: "smooth" });
+  };
+
+  if (!safeData.length) return null;
 
   return (
     <Section>
@@ -25,8 +38,23 @@ const RecentCompany = ({ data = [] }) => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-5 mb-6 px-4 sm:px-0">
-          {data.slice(0, 5).map((company) => {
+        <div className="relative">
+          {/* Left arrow */}
+          <button
+            type="button"
+            onClick={() => scrollBy(-1)}
+            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-9 w-9 rounded-full bg-white shadow-md border border-gray-200 items-center justify-center text-gray-500 hover:text-brand-600 hover:border-brand-300 z-10"
+          >
+            <span className="text-lg">&#8249;</span>
+          </button>
+
+          {/* Scrollable company cards */}
+          <div
+            ref={listRef}
+            className="overflow-x-auto no-scrollbar px-1"
+          >
+            <div className="flex gap-3 md:gap-4 py-2 justify-start">
+          {safeData.map((company) => {
             const categories = Array.isArray(company.business_categories)
               ? company.business_categories
               : company.business_category
@@ -37,7 +65,7 @@ const RecentCompany = ({ data = [] }) => {
             <Link
               key={company.id}
               href={`/company/${company.slug || company.id}`}
-              className="group"
+              className="group flex-shrink-0 w-[220px] sm:w-[260px]"
             >
               <div className="bg-white border border-gray-100 rounded-2xl px-6 py-8 text-center hover:shadow-md hover:border-brand-200 transition-all h-full flex flex-col items-center">
                 <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mb-5 mx-auto overflow-hidden group-hover:bg-orange-100 transition-colors">
@@ -88,6 +116,17 @@ const RecentCompany = ({ data = [] }) => {
               </div>
             </Link>
           )})}
+            </div>
+          </div>
+
+          {/* Right arrow */}
+          <button
+            type="button"
+            onClick={() => scrollBy(1)}
+            className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-9 w-9 rounded-full bg-white shadow-md border border-gray-200 items-center justify-center text-gray-500 hover:text-brand-600 hover:border-brand-300 z-10"
+          >
+            <span className="text-lg">&#8250;</span>
+          </button>
         </div>
 
       </Container>
